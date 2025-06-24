@@ -1,112 +1,71 @@
-// src/Pages/Product/Basket.jsx
-
-import React, { useEffect, useState } from "react";
+import React, { useEffect } from "react";
 import {
   Box,
   Button,
   IconButton,
   Typography,
   Divider,
-  Snackbar,
+  Grid,
+  CircularProgress,
 } from "@mui/material";
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCart, updateCartItem, deleteCartItem } from "../../redux/slices/cartSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
-import { useDispatch, useSelector } from "react-redux";
-import {
-  fetchCart,
-  updateCartItem,
-  deleteCartItem,
-} from "../../redux/slices/cartSlice";
-import { useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 
-const Basket = () => {
+export default function YourBasket() {
   const dispatch = useDispatch();
-  const navigate = useNavigate();
-
-  const items = useSelector((state) => state.cart.items || []);
-  const loading = useSelector((state) => state.cart.loading);
-
-  const [alert, setAlert] = useState({ open: false, message: "" });
+  const { items, loading } = useSelector((state) => state.cart);
 
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  const handleQuantityChange = (id, quantity) => {
+  const handleQuantityChange = (cart_id, quantity) => {
     if (quantity < 1) return;
-
-    dispatch(updateCartItem({ cart_id: id, quantity }))
-      .unwrap()
-      .then(() => {
-        setAlert({ open: true, message: "Quantity updated!" });
-        dispatch(fetchCart());
-      })
-      .catch((err) => {
-        setAlert({
-          open: true,
-          message: err?.message || "Failed to update quantity",
-        });
-      });
+    dispatch(updateCartItem({ cart_id, quantity }))
+      .then(() => dispatch(fetchCart()));
   };
 
-  const handleDelete = (id) => {
-    dispatch(deleteCartItem(id))
-      .unwrap()
-      .then(() => {
-        setAlert({ open: true, message: "Item removed from cart!" });
-        dispatch(fetchCart());
-      })
-      .catch((err) => {
-        setAlert({
-          open: true,
-          message: err?.message || "Failed to remove item",
-        });
-      });
+  const handleDelete = (cart_id) => {
+    dispatch(deleteCartItem(cart_id)).then(() => dispatch(fetchCart()));
   };
 
-  const total = items.reduce((acc, item) => acc + parseFloat(item.total || 0), 0);
+  const totalAmount = !loading
+    ? items?.reduce((sum, item) => sum + item.total, 0)
+    : 0;
 
   return (
-    <Box p={4}>
-      <Typography variant="h5" gutterBottom>
-        Your Basket
-      </Typography>
-
-      {!loading && items.length === 0 ? (
-        <Typography>No items in your cart.</Typography>
-      ) : (
-        <>
-          {items.map((item) => (
+    <Grid container spacing={4} sx={{ p: 4 }}>
+      <Grid item xs={12} md={8}>
+        {loading ? (
+          <CircularProgress />
+        ) : items && items.length > 0 ? (
+          items.map((item) => (
             <Box
               key={item.id}
               display="flex"
               alignItems="center"
               justifyContent="space-between"
-              bgcolor="#f9f9ff"
               p={2}
               mb={2}
+              bgcolor="#FAFAFF"
               borderRadius={2}
+              boxShadow={1}
             >
-              {/* Image & Name */}
               <Box display="flex" alignItems="center" gap={2}>
                 <img
                   src={item.image || "https://via.placeholder.com/50"}
                   alt={item.name}
-                  style={{
-                    width: 50,
-                    height: 50,
-                    objectFit: "cover",
-                    borderRadius: 6,
-                  }}
+                  style={{ width: 50, height: 50, objectFit: "cover", borderRadius: 8 }}
                 />
-                <Box>
-                  <Typography fontWeight={600}>{item.name}</Typography>
-                  <Typography color="text.secondary">£{item.price}</Typography>
-                </Box>
+                <Typography>{item.name}</Typography>
               </Box>
 
-              {/* Quantity Controls */}
+              <Typography>£{item.price.toFixed(2)}</Typography>
+
               <Box display="flex" alignItems="center" gap={1}>
                 <IconButton onClick={() => handleQuantityChange(item.id, item.quantity - 1)}>
                   <RemoveIcon />
@@ -117,53 +76,61 @@ const Basket = () => {
                 </IconButton>
               </Box>
 
-              {/* Total Price */}
-              <Typography fontWeight={600}>£{item.total}</Typography>
+              <Typography>£{item.total.toFixed(2)}</Typography>
 
-              {/* Delete Button */}
-              <IconButton onClick={() => handleDelete(item.id)}>
-                <DeleteIcon color="error" />
+              <IconButton onClick={() => handleDelete(item.id)} color="error">
+                <DeleteIcon />
               </IconButton>
             </Box>
-          ))}
+          ))
+        ) : (
+          <Typography>No items in cart.</Typography>
+        )}
+      </Grid>
 
-          <Divider sx={{ my: 3 }} />
-
-          {/* Total */}
-          <Box display="flex" justifyContent="space-between" alignItems="center">
-            <Typography variant="h6">Total:</Typography>
-            <Typography variant="h6" color="error">
-              £{total.toFixed(2)}
+      {/* Sidebar */}
+      <Grid item xs={12} md={4}>
+        <Box
+          p={3}
+          bgcolor="#FAFAFF"
+          borderRadius={2}
+          boxShadow={1}
+          textAlign="center"
+        >
+          <Typography variant="h6" fontWeight="bold" gutterBottom>
+            Basket Totals
+          </Typography>
+          <Divider sx={{ mb: 2 }} />
+          {loading ? (
+            <Typography>Loading total...</Typography>
+          ) : (
+            <Typography variant="body1" gutterBottom>
+              Total:
+              <strong style={{ marginLeft: 8, color: "red" }}>
+                £{totalAmount.toFixed(2)}
+              </strong>
             </Typography>
-          </Box>
+          )}
 
           <Button
-            fullWidth
+            variant="contained"
+            color="primary"
+            component={Link}
+            to="/checkout"
             sx={{
-              mt: 3,
-              py: 1.5,
-              background: "linear-gradient(to right, #3f51b5, #f44336)",
-              color: "#fff",
-              fontWeight: 600,
-              borderRadius: 3,
+              mt: 2,
+              width: "100%",
+              borderRadius: "30px",
               textTransform: "none",
+              background: "linear-gradient(to right, #3f51b5, #f44336)",
+              fontWeight: "bold",
             }}
-            onClick={() => navigate("/checkout")}
+            disabled={loading || items.length === 0}
           >
             Proceed to Checkout
           </Button>
-        </>
-      )}
-
-      {/* Snackbar */}
-      <Snackbar
-        open={alert.open}
-        autoHideDuration={3000}
-        onClose={() => setAlert({ ...alert, open: false })}
-        message={alert.message}
-      />
-    </Box>
+        </Box>
+      </Grid>
+    </Grid>
   );
-};
-
-export default Basket;
+}

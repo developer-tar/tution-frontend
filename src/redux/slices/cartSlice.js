@@ -1,4 +1,3 @@
-// redux/slices/cartSlice.js
 import { createSlice, createAsyncThunk } from "@reduxjs/toolkit";
 import api from "../../api";
 
@@ -9,7 +8,7 @@ export const fetchCart = createAsyncThunk("cart/fetchCart", async (_, { rejectWi
     const rawItems = res.data.data || [];
 
     return rawItems.map((item) => ({
-      id: item.cart_id,              // ✅ Actual cart ID for update/delete
+      id: item.cart_id,
       name: item.course_name,
       image: item.course_image,
       quantity: item.quantity,
@@ -21,28 +20,34 @@ export const fetchCart = createAsyncThunk("cart/fetchCart", async (_, { rejectWi
   }
 });
 
-
-// ✅ Add to Cart
+// ✅ Add to Cart (no state mutation here)
 export const addToCart = createAsyncThunk("cart/addToCart", async (item, { rejectWithValue }) => {
   try {
-    const res = await api.post("/cart/add", item);
-    return res.data.data;
+    await api.post("/cart/add", item); // don't expect detailed data here
+    return {}; // no need to process response
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message);
   }
 });
 
-// 👉 Update cart item by cart_id
-export const updateCartItem = createAsyncThunk("cart/updateItem", async ({ cart_id, quantity }, { rejectWithValue }) => {
-  try {
-    await api.put(`/cart/update/${cart_id}`, { quantity }); // ✅ POST method
-    return { cart_id, quantity };
-  } catch (err) {
-    return rejectWithValue(err.response?.data?.message || err.message);
+// ✅ Update Cart Item Quantity
+export const updateCartItem = createAsyncThunk(
+  "cart/updateItem",
+  async ({ cart_id, quantity, price }, { rejectWithValue }) => {
+    try {
+      await api.put(`/cart/update/${cart_id}`, { quantity });
+      return {
+        cart_id,
+        quantity,
+        total_price: parseFloat(price) * quantity,
+      };
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.message || err.message);
+    }
   }
-});
+);
 
-// ✅ Delete Cart
+// ✅ Delete Cart Item
 export const deleteCartItem = createAsyncThunk("cart/deleteCartItem", async (cartId, { rejectWithValue }) => {
   try {
     await api.delete(`/cart/remove/${cartId}`);
@@ -52,7 +57,6 @@ export const deleteCartItem = createAsyncThunk("cart/deleteCartItem", async (car
   }
 });
 
-// ✅ Slice
 const cartSlice = createSlice({
   name: "cart",
   initialState: {
@@ -63,7 +67,6 @@ const cartSlice = createSlice({
   reducers: {},
   extraReducers: (builder) => {
     builder
-      // Fetch
       .addCase(fetchCart.pending, (state) => {
         state.loading = true;
       })
@@ -76,29 +79,22 @@ const cartSlice = createSlice({
         state.error = action.payload;
       })
 
-      // Add
-      .addCase(addToCart.fulfilled, (state, action) => {
-        state.items.push({
-          id: Date.now(), // Temporary; ideally from backend
-          ...action.payload,
-        });
-      })
+      // ✅ No addToCart.fulfilled — we use fetchCart afterward
 
-     // Update
       .addCase(updateCartItem.fulfilled, (state, action) => {
-        const { cart_id, quantity } = action.payload;
-        const item = state.items.find((i) => i.cart_id === cart_id);
+        const { cart_id, quantity, total_price } = action.payload;
+        const item = state.items.find((i) => i.id === cart_id);
         if (item) {
           item.quantity = quantity;
-          item.total_price = parseFloat(item.course_price) * quantity;
+          item.total = total_price;
         }
       })
       .addCase(updateCartItem.rejected, (state, action) => {
         state.error = action.payload;
       })
-      // Delete
+
       .addCase(deleteCartItem.fulfilled, (state, action) => {
-        state.items = state.items.filter(item => item.id !== action.payload);
+        state.items = state.items.filter((item) => item.id !== action.payload);
       });
   },
 });

@@ -55,6 +55,9 @@ const ProductPage = lazy(() => import("./Pages/Product/ProductPage"));
 const AddToCartComponent = lazy(() => import("./Pages/Product/AddToCartComponent"));
 const YourBasket = lazy(() => import("./Pages/Product/YourBasket"));
 const CheckoutPage = lazy(() => import("./Pages/CheckoutPage"));
+const OrderConfirmation = lazy(() => import("./Pages/Checkout/OrderConfirmation"));
+const MockExams = lazy(() => import("./Pages/MockExams"));
+
 
 const routes = [
   { path: "/", element: <Home /> },
@@ -63,6 +66,7 @@ const routes = [
   { path: "/course-list", element: <CoursesList /> },
   { path: "/course-view", element: <Course /> },
   { path: "/course/:slug", element: <Course /> },
+  { path: "/mock-exams", element: <MockExams /> },
 
   // Product Pages
   { path: "/single-product-page", element: <ProductPage /> },
@@ -70,9 +74,10 @@ const routes = [
 
   // Cart and Checkout
   { path: "/basket", element: <YourBasket /> },
-  { path: "/cart", element: <YourBasket /> },               // ✅ alias for cart
+  { path: "/cart", element: <YourBasket /> },               
   { path: "/checkout", element: <CheckoutPage /> },
-  { path: "/checkout/:slug", element: <CheckoutPage /> },   // ✅ dynamic checkout
+  { path: "/checkout/:slug", element: <CheckoutPage /> },  
+   { path: "/order-confirmation", element: <OrderConfirmation /> } 
 ];
 
 const AppRoutes = () => {
