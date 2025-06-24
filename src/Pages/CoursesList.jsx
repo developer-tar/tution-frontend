@@ -8,7 +8,7 @@ import RegisterInterest from './Courses List/RegisterInterest';
 
 const CoursesList = () => {
       const breadcrumbs = [
-    { label: "Courses", path: "/course-view" },
+    { label: "Courses", path: "/course-list" },
   ];
 
 
