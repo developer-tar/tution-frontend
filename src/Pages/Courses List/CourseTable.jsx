@@ -17,6 +17,7 @@ import {
 import { containerStyles } from "../style";
 import { Link } from "react-router-dom";
 import api from "../../api";
+import CommonSkeleton from "../../components/CommonSkeleton"; 
 
 export default function CourseTable() {
   const [courses, setCourses] = useState([]);
@@ -119,11 +120,7 @@ export default function CourseTable() {
             </TableHead>
             <TableBody>
               {loading ? (
-                <TableRow>
-                  <TableCell colSpan={4} align="center">
-                    Loading...
-                  </TableCell>
-                </TableRow>
+                <CommonSkeleton type="table" rows={5} cols={4} />
               ) : courses.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={4} align="center">
@@ -142,6 +139,7 @@ export default function CourseTable() {
                             width: 40,
                             height: 40,
                             objectFit: "cover",
+                            borderRadius: 4,
                           }}
                         />
                         <Typography sx={{ fontSize: "14px", fontWeight: 500 }}>

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useParams } from 'react-router-dom';
-import { Box, Container, Grid, Typography, CircularProgress } from '@mui/material';
+import { Box, Container, Grid, Typography } from '@mui/material';
 import CourseHeader from './Courses/CourseHeader';
 import CourseContent from './Courses/CourseContent';
 import CourseSidebar from './Courses/CourseSidebar';
@@ -9,39 +9,40 @@ import CourseBenefitsSection from './Courses/CourseBenefitsSection';
 import Year3FormatsSection from './Courses/Year3FormatsSection';
 import { containerStyles } from './style';
 import api from "../api";
+import CommonSkeleton from '../components/CommonSkeleton'; 
 
 const Course = () => {
   const { slug } = useParams();
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  const fetchCourse = async () => {
-    try {
-      const res = await api.get(`${slug}`); 
-
-      if (res.data.success && res.data.data.length > 0) {
-        setCourseData(res.data.data[0]);
-      } else {
+  useEffect(() => {
+    const fetchCourse = async () => {
+      try {
+        const res = await api.get(`${slug}`); 
+        if (res.data.success && res.data.data.length > 0) {
+          setCourseData(res.data.data[0]);
+        } else {
+          setCourseData(null);
+        }
+      } catch (error) {
+        console.error("Error fetching course:", error);
         setCourseData(null);
+      } finally {
+        setLoading(false);
       }
-    } catch (error) {
-      console.error("Error fetching course:", error);
-      setCourseData(null);
-    } finally {
-      setLoading(false);
-    }
-  };
+    };
 
-  fetchCourse();
-}, [slug]);
-
+    fetchCourse();
+  }, [slug]);
 
   if (loading) {
     return (
       <Box sx={{ py: 10, textAlign: 'center' }}>
-        <CircularProgress />
-        <Typography variant="body1" sx={{ mt: 2 }}>Loading course...</Typography>
+        <CommonSkeleton type="card" rows={3} height={50} />
+        <Typography variant="body1" sx={{ mt: 3 }}>
+          Loading course details...
+        </Typography>
       </Box>
     );
   }
@@ -77,4 +78,3 @@ useEffect(() => {
 };
 
 export default Course;
-
