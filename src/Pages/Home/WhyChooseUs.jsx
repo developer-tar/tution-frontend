@@ -24,7 +24,7 @@ export default function WhyChooseUs() {
         <Grid item xs={12} md={6}>
           <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
                     <img
-                      src="/assets/images/whychoose-img.png" // Replace with your uploaded image
+                      src="/assets/images/whychoose-img.png" // Replace with your uploaded images
                       alt="Character"
                       style={{  height: "auto" }}
                     />
