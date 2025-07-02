@@ -66,7 +66,7 @@ export default function CourseHeader({ data }) {
 
         <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
           <Button variant="contained" sx={{ borderRadius: '999px', textTransform: 'none', px: { xs: 2, sm: 3 }, py: { xs: 0.5, sm: 1 }, fontSize: { xs: '0.875rem', sm: '1rem' } }}>
-            Current Year ({data.academicyear})
+            Current Year ({data.acdemicyear})
           </Button>
         </Box>
       </Container>
