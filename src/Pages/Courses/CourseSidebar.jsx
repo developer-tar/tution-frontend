@@ -4,6 +4,9 @@ import { Box, Typography, Button, Card, CardContent, CardMedia } from "@mui/mate
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import { button, icon } from "../style";
 
+
+// sidebar
+
 export default function CourseSidebar({ data }) {
   return (
     <Box sx={{ px: 3, py: 4 }}>

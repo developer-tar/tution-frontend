@@ -20,6 +20,8 @@ import ExpandMoreIcon from "@mui/icons-material/ExpandMore";
 import { Link } from "react-router-dom";
 import { containerStyles } from "./style";
 
+// navbar menu
+
 const navItems = [
   { label: "Home", path: "/" },
   {

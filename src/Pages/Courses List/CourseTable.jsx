@@ -43,7 +43,6 @@ export default function CourseTable() {
   return (
     <Box sx={{ py: 8 }}>
       <Container sx={containerStyles}>
-        {/* Filter Section */}
         <Box
           sx={{
             display: "flex",

@@ -11,6 +11,8 @@ import { containerStyles } from './style';
 import api from "../api";
 import CommonSkeleton from '../components/CommonSkeleton'; 
 
+// function for course 
+
 const Course = () => {
   const { slug } = useParams();
   const [courseData, setCourseData] = useState(null);

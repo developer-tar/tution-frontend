@@ -1,6 +1,8 @@
 import React from "react";
 import { Skeleton, TableRow, TableCell, Stack } from "@mui/material";
 
+// common function for skelton
+
 const CommonSkeleton = ({ type = "card", rows = 5, cols = 4, height = 30 }) => {
   if (type === "table") {
     return (

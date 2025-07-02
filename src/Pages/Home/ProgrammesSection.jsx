@@ -16,7 +16,7 @@ import CommonSkeleton from "../../components/CommonSkeleton";
 
 export default function ProgrammesSection() {
   const [courses, setCourses] = useState([]);
-  const [loading, setLoading] = useState(true); // loading state
+  const [loading, setLoading] = useState(true); 
 
   useEffect(() => {
     const fetchCourses = async () => {

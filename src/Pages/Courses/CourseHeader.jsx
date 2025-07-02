@@ -13,6 +13,7 @@ import {
 
 import { containerStyles, h2 } from '../style';
 
+// header
 
 export default function CourseHeader({ data }) {
   return (

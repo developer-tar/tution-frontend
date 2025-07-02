@@ -5,6 +5,8 @@ import { Box, Typography, Button, Container } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { button, containerStyles, icon } from '../style';
 
+// content
+
 export default function CourseContent({ data }) {
   return (
     <Box sx={{ py: 4 }}>
