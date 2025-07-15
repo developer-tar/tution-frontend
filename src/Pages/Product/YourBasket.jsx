@@ -1,185 +1,169 @@
-import React from "react";
-import { Box, Button, Grid, Typography, TextField, Container } from "@mui/material";
-import { containerStyles } from "../style";
-import PageHeader from "../PageHeader";
-import { Link } from "react-router-dom";
+// src/Pages/Product/Basket.jsx
 
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Button,
+  IconButton,
+  Typography,
+  Divider,
+  Snackbar,
+} from "@mui/material";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+import RemoveIcon from "@mui/icons-material/Remove";
+import { useDispatch, useSelector } from "react-redux";
+import {
+  fetchCart,
+  updateCartItem,
+  deleteCartItem,
+} from "../../redux/slices/cartSlice";
+import { useNavigate } from "react-router-dom";
 
-export default function YourBasket() {
+const Basket = () => {
+  const dispatch = useDispatch();
+  const navigate = useNavigate();
 
-    const breadcrumbs = [
-        { label: "Home", path: "/" },
-        { label: "Courses", path: "/course-list" },
-        { label: " Year 3 Weekly 24", path: "/" },
-        { label: "Year 3: EALING 2024 - 2025", path: "/" },
-    ];
+  const items = useSelector((state) => state.cart.items || []);
+  const loading = useSelector((state) => state.cart.loading);
 
-    return (
+  const [alert, setAlert] = useState({ open: false, message: "" });
+
+  useEffect(() => {
+    dispatch(fetchCart());
+  }, [dispatch]);
+
+  const handleQuantityChange = (id, quantity) => {
+    if (quantity < 1) return;
+
+    dispatch(updateCartItem({ cart_id: id, quantity }))
+      .unwrap()
+      .then(() => {
+        setAlert({ open: true, message: "Quantity updated!" });
+        dispatch(fetchCart());
+      })
+      .catch((err) => {
+        setAlert({
+          open: true,
+          message: err?.message || "Failed to update quantity",
+        });
+      });
+  };
+
+  const handleDelete = (id) => {
+    dispatch(deleteCartItem(id))
+      .unwrap()
+      .then(() => {
+        setAlert({ open: true, message: "Item removed from cart!" });
+        dispatch(fetchCart());
+      })
+      .catch((err) => {
+        setAlert({
+          open: true,
+          message: err?.message || "Failed to remove item",
+        });
+      });
+  };
+
+  const total = items.reduce((acc, item) => acc + parseFloat(item.total || 0), 0);
+
+  return (
+    <Box p={4}>
+      <Typography variant="h5" gutterBottom>
+        Your Basket
+      </Typography>
+
+      {!loading && items.length === 0 ? (
+        <Typography>No items in your cart.</Typography>
+      ) : (
         <>
-            <PageHeader
-                title="Your Basket"
-                // subtitle="Find the perfect course for your child"
-                breadcrumbs={breadcrumbs}
-            />
-            <Box sx={{ py: 6, px: { xs: 2, md: 6 }, }}>
-                <Container sx={containerStyles}>
-                    <Grid container spacing={4}>
-                        {/* Product List and Coupon Section */}
-                        <Grid item xs={12} md={8}>
-                            {/* Product List */}
-                            <Box
-                                sx={{
-                                    backgroundColor: "#F9F9FF",
-                                    padding: 3,
-                                    borderRadius: "5px",
-                                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.05)",
-                                    mb: 3,
-                                }}
-                            >
-                                <Grid container alignItems="center" spacing={2}>
-                                    {/* Product Image */}
-                                    <Grid item xs={3}>
-                                        <Box
-                                            component="img"
-                                            src="/assets/images/product-img.png"
-                                            alt="Product"
-                                            sx={{
-                                                width: "80px",
-                                                height: "auto",
-                                                borderRadius: "8px",
-                                                objectFit: "cover",
-                                            }}
-                                        />
-                                    </Grid>
+          {items.map((item) => (
+            <Box
+              key={item.id}
+              display="flex"
+              alignItems="center"
+              justifyContent="space-between"
+              bgcolor="#f9f9ff"
+              p={2}
+              mb={2}
+              borderRadius={2}
+            >
+              {/* Image & Name */}
+              <Box display="flex" alignItems="center" gap={2}>
+                <img
+                  src={item.image || "https://via.placeholder.com/50"}
+                  alt={item.name}
+                  style={{
+                    width: 50,
+                    height: 50,
+                    objectFit: "cover",
+                    borderRadius: 6,
+                  }}
+                />
+                <Box>
+                  <Typography fontWeight={600}>{item.name}</Typography>
+                  <Typography color="text.secondary">£{item.price}</Typography>
+                </Box>
+              </Box>
 
-                                    {/* Product Info */}
-                                    <Grid item xs={3}>
-                                        <Typography sx={{ fontWeight: 600, fontSize: "14px", color: "#1f2937" }}>
-                                            Year 3: EALING 2024 - 2025
-                                        </Typography>
-                                        <Typography sx={{ fontSize: "12px", color: "#6b7280" }}>
-                                            Sat 9.00am-10.45am
-                                        </Typography>
-                                    </Grid>
+              {/* Quantity Controls */}
+              <Box display="flex" alignItems="center" gap={1}>
+                <IconButton onClick={() => handleQuantityChange(item.id, item.quantity - 1)}>
+                  <RemoveIcon />
+                </IconButton>
+                <Typography>{item.quantity}</Typography>
+                <IconButton onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
+                  <AddIcon />
+                </IconButton>
+              </Box>
 
-                                    {/* Price */}
-                                    <Grid item xs={2}>
-                                        <Typography sx={{ fontSize: "14px", color: "#1f2937" }}>£100.00</Typography>
-                                    </Grid>
+              {/* Total Price */}
+              <Typography fontWeight={600}>£{item.total}</Typography>
 
-                                    {/* Quantity */}
-                                    <Grid item xs={2}>
-                                        <Typography sx={{ fontSize: "14px", color: "#1f2937" }}>1</Typography>
-                                    </Grid>
-
-                                    {/* Subtotal */}
-                                    <Grid item xs={2}>
-                                        <Typography sx={{ fontSize: "14px", fontWeight: 600, color: "#d32f2f" }}>
-                                            £200.00
-                                        </Typography>
-                                    </Grid>
-                                </Grid>
-                            </Box>
-
-                            {/* Coupon Section */}
-                            <Box
-                                sx={{
-                                    backgroundColor: "#F9F9FF",
-                                    padding: 2,
-                                    borderRadius: "5px",
-                                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.05)",
-                                    display: "flex",
-                                    gap: 2,
-                                    alignItems: "center",
-                                }}
-                            >
-                                <TextField
-                                    fullWidth
-                                    placeholder="Coupon Code"
-                                    variant="outlined"
-                                    sx={{
-                                        backgroundColor: "#f5f7ff",
-                                        borderRadius: "8px",
-                                        "& .MuiOutlinedInput-root": {
-                                            padding: "2px 5px",
-                                        },
-                                    }}
-                                />
-                                <Button
-                                    variant="contained"
-                                    sx={{
-                                        background: "linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)",
-                                        color: "#fff",
-                                        padding: "8px 14px",
-                                        fontWeight: 600,
-                                        borderRadius: "30px",
-                                        textTransform: "none",
-                                        // "&:hover": {
-                                        //     background: "linear-gradient(to right, #ff4b2b, #ff416c)",
-                                        // },
-                                    }}
-                                >
-                                    Apply Coupon
-                                </Button>
-                            </Box>
-                        </Grid>
-
-                        {/* Basket Totals Section */}
-                        <Grid item xs={12} md={4}>
-                            <Box
-                                sx={{
-                                    backgroundColor: "#F9F9FF",
-                                    padding: 3,
-                                    borderRadius: "5px",
-                                    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.05)",
-                                }}
-                            >
-                                <Typography
-                                    sx={{
-                                        fontWeight: 600,
-                                        fontSize: "16px",
-                                        color: "#1f2937",
-                                        mb: 2,
-                                    }}
-                                >
-                                    Basket Totals
-                                </Typography>
-
-                                <Box
-                                    sx={{
-                                        display: "flex",
-                                        justifyContent: "space-between",
-                                        mb: 3,
-                                    }}
-                                >
-                                    <Typography sx={{ fontSize: "14px", color: "#6b7280" }}>Total:</Typography>
-                                    <Typography sx={{ fontSize: "16px", fontWeight: 600, color: "#d32f2f" }}>
-                                        £200.00
-                                    </Typography>
-                                </Box>
-                                <Link to="/checkout" style={{ textDecoration: "none" }} >
-                                    <Button
-                                        variant="contained"
-                                        fullWidth
-                                        sx={{
-                                            background: "linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)",
-                                            color: "#fff",
-                                            padding: "12px 0",
-                                            fontWeight: 600,
-                                            borderRadius: "30px",
-                                            textTransform: "none",
-                                            "&:hover": {
-                                                background: "linear-gradient(to right, #d32f2f, #7b1fa2)",
-                                            },
-                                        }}
-                                    >
-                                        Proceed to Checkout
-                                    </Button></Link>
-                            </Box>
-                        </Grid>
-                    </Grid>
-                </Container>
+              {/* Delete Button */}
+              <IconButton onClick={() => handleDelete(item.id)}>
+                <DeleteIcon color="error" />
+              </IconButton>
             </Box>
+          ))}
+
+          <Divider sx={{ my: 3 }} />
+
+          {/* Total */}
+          <Box display="flex" justifyContent="space-between" alignItems="center">
+            <Typography variant="h6">Total:</Typography>
+            <Typography variant="h6" color="error">
+              £{total.toFixed(2)}
+            </Typography>
+          </Box>
+
+          <Button
+            fullWidth
+            sx={{
+              mt: 3,
+              py: 1.5,
+              background: "linear-gradient(to right, #3f51b5, #f44336)",
+              color: "#fff",
+              fontWeight: 600,
+              borderRadius: 3,
+              textTransform: "none",
+            }}
+            onClick={() => navigate("/checkout")}
+          >
+            Proceed to Checkout
+          </Button>
         </>
-    );
-}
+      )}
+
+      {/* Snackbar */}
+      <Snackbar
+        open={alert.open}
+        autoHideDuration={3000}
+        onClose={() => setAlert({ ...alert, open: false })}
+        message={alert.message}
+      />
+    </Box>
+  );
+};
+
+export default Basket;
