@@ -50,7 +50,7 @@ export default function CourseHeader({ data }) {
         <Grid container spacing={2} sx={{ mb: 4 }}>
           <Grid item xs={12}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>School Year</Typography>
-            <Typography variant="body2" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>{data.academicyear}</Typography>
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>{data.acdemicyear}</Typography>
           </Grid>
 
           <Grid item xs={12}>
@@ -60,7 +60,9 @@ export default function CourseHeader({ data }) {
 
           <Grid item xs={12}>
             <Typography variant="subtitle2" color="text.secondary" sx={{ fontSize: { xs: '0.75rem', sm: '0.875rem' } }}>Location</Typography>
-            <Typography variant="body2" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>{data.locations.join(', ')}</Typography>
+            <Typography variant="body2" sx={{ fontSize: { xs: '0.875rem', sm: '1rem' } }}>
+              {Array.isArray(data.locations) ? data.locations.map(loc => typeof loc === 'object' ? loc.name : loc).join(', ') : 'N/A'}
+            </Typography>
           </Grid>
         </Grid>
 

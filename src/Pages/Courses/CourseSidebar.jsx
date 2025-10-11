@@ -22,9 +22,9 @@ export default function CourseSidebar({ data }) {
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
             {data.name}
           </Typography>
-          <Typography variant="body1" sx={{ mb: 2 }}>
+          {/* <Typography variant="body1" sx={{ mb: 2 }}>
             Price: ₹{data.price}
-          </Typography>
+          </Typography> */}
           <Button disableElevation sx={button}>
             View Timetable
             <Box sx={icon}>

@@ -29,8 +29,7 @@ export default function CourseTable() {
   const [loading, setLoading] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
   const [lastPage, setLastPage] = useState(1);
-  const [totalItems, setTotalItems] = useState(0);
-  const [showAll, setShowAll] = useState(true); // show maximum response by default
+  const [showAll] = useState(true); // show maximum response by default
   const [alert, setAlert] = useState({ open: false, message: "" });
   const [format, setFormat] = useState("Online");
   const [location, setLocation] = useState("London");
@@ -71,7 +70,6 @@ export default function CourseTable() {
           setCourses(combined);
           setCurrentPage(payload.current_page || 1);
           setLastPage(showAll ? 1 : (payload.last_page || 1));
-          setTotalItems(showAll ? combined.length : (payload.total || combined.length || 0));
         }
       } catch (error) {
         console.error("Failed to fetch courses:", error);

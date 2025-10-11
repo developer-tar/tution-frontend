@@ -107,48 +107,44 @@ export default function CourseBenefitsSection() {
                                 boxShadow: 1,
                             }}
                         >
-                            {/* Label */}
-                            <Box
-                                sx={{
-                                    display: 'inline-block',
-                                    bgcolor: '#F0F4FF',
-                                    borderRadius: '12px',
-                                    px: 2,
-                                    py: 0.5,
-                                }}
-                            >
-                                <Typography
-                                    variant="button"
-                                    sx={{ fontSize: '0.875rem', color: '#000' }}
-                                >
-                                    English/Maths Coursebooks
-                                </Typography>
-                            </Box>
+                            <Box sx={{ textAlign: 'center', mb: 2 }}>
+                                    <Typography
+                                        variant="button"
+                                        sx={{ fontSize: '0.875rem', color: '#000' }}
+                                    >
+                                        English/Maths Coursebooks
+                                    </Typography>
+                                </Box>
 
-                            {/* Overlapping images */}
-                            <Box
-                                sx={{
-                                   
-                                    // width: '100%',
-                                    // height: { xs: 200, sm: 240, md: 300 },
-                                    // mt: 3,
-                                }}
-                            >
-                              
-                                <Box
-                                    component="img"
-                                    src="assets/images/key-img.png"
-                                    alt="Coursebook front"
-                                    sx={{
-                                       
-                                        width: { xs: 120, sm: 160, md: "auto" },
-                                        // borderRadius: '8px',
-                                        // boxShadow: 2,
-                                    }}
-                                />
+                                {/* Coursebook images */}
+                                <Box sx={{ display: 'flex', justifyContent: 'center', gap: 2, flexWrap: 'wrap' }}>
+                                    <Box
+                                        component="img"
+                                        src="assets/images/key-img.png"
+                                        alt="English Coursebook"
+                                        sx={{
+                                            width: { xs: 100, sm: 120, md: 140 },
+                                            borderRadius: '8px',
+                                            boxShadow: 2,
+                                            transition: 'transform 0.3s ease',
+                                            '&:hover': { transform: 'scale(1.05)' }
+                                        }}
+                                    />
+                                    <Box
+                                        component="img"
+                                        src="assets/images/key-img.png"
+                                        alt="Maths Coursebook"
+                                        sx={{
+                                            width: { xs: 100, sm: 120, md: 140 },
+                                            borderRadius: '8px',
+                                            boxShadow: 2,
+                                            transition: 'transform 0.3s ease',
+                                            '&:hover': { transform: 'scale(1.05)' }
+                                        }}
+                                    />
+                                </Box>
                             </Box>
-                        </Box>
-                    </Grid>
+                        </Grid>
                 </Grid>
             </Container>
         </Box>

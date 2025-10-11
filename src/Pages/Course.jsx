@@ -7,6 +7,8 @@ import CourseSidebar from './Courses/CourseSidebar';
 import ExamTypes from './Courses/ExamTypes';
 import CourseBenefitsSection from './Courses/CourseBenefitsSection';
 import Year3FormatsSection from './Courses/Year3FormatsSection';
+import PricingPlansSection from './Courses/PricingPlansSection';
+import CourseListSection from './Courses/CourseListSection';
 import { containerStyles } from './style';
 import api from "../api";
 import CommonSkeleton from '../components/CommonSkeleton'; 
@@ -17,11 +19,13 @@ const Course = () => {
   const { slug } = useParams();
   const [courseData, setCourseData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState(null);
 
   useEffect(() => {
     const fetchCourse = async () => {
       try {
         const res = await api.get(`${slug}`); 
+        console.log(res.data);
         if (res.data.success && res.data.data.length > 0) {
           setCourseData(res.data.data[0]);
         } else {
@@ -72,9 +76,11 @@ const Course = () => {
         </Grid>
       </Container>
 
+      <PricingPlansSection data={courseData} filters={filters} />
+      <Year3FormatsSection data={courseData} />
+      <CourseListSection data={courseData} onFiltersChange={setFilters} />
       <ExamTypes />
       <CourseBenefitsSection />
-      <Year3FormatsSection data={courseData} />
     </Box>
   );
 };

@@ -1,0 +1,316 @@
+import React, { useState, useEffect } from 'react';
+import {
+    Box,
+    Container,
+    Grid,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
+    Typography,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
+    Paper,
+    Chip,
+    Button
+} from '@mui/material';
+import { containerStyles } from '../style';
+import api from '../../api';
+
+export default function CourseListSection({ data, onFiltersChange }) {
+    
+    const handleRegisterClick = (course) => {
+        // Store course data in localStorage for add-to-cart page
+        const cartData = {
+            courseData: data,
+            selectedCourse: course,
+            courseName: data.name,
+            courseSlug: data.slug,
+            selectedLocation: course.location,
+            selectedFee: course.fee,
+            selectedDayTime: course.dayTime,
+            timestamp: Date.now()
+        };
+        
+        localStorage.setItem('courseCartData', JSON.stringify(cartData));
+        
+        // Navigate to add-to-cart page
+        window.location.href = '/add-to-cart';
+    };
+    const [filters, setFilters] = useState({
+        format: 'All Formats',
+        location: 'All Locations',
+        days: 'All Days',
+        installment: 'All Installment'
+    });
+
+    const [filterOptions, setFilterOptions] = useState({
+        formats: [], locations: [], days: [], installments: []
+    });
+    const [courseList, setCourseList] = useState([]);
+
+    const isUpcoming = (startEndDate) => {
+        if (!startEndDate) return false;
+        const courseDate = new Date(startEndDate.split(' to ')[0]);
+        return courseDate >= new Date();
+    };
+
+    useEffect(() => {
+        fetchFilterOptions();
+        if (data && data.locations) {
+            generateCourseList();
+        }
+    }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const fetchFilterOptions = async () => {
+        if (!data) return;
+        
+        try {
+            // Fetch filter options from common/data API
+            const [locationsRes, daysRes, formatsRes, installmentsRes] = await Promise.all([
+                api.get('/common/data?param=Locations'),
+                api.get('/common/data?param=WeekDays'),
+                api.get('/common/data?param=Modes'),
+                api.get('/common/data?param=BillingPeriods')
+            ]);
+    
+            // Helper function to extract values from API response
+            const extractValues = (response, fallback) => {
+                const items = response?.data?.data || fallback || [];
+                return items.map(item => {
+                    if (item && typeof item === 'object') {
+                        return item.name || item.Name || item.value || item.Value || item;
+                    }
+                    return item;
+                });
+            };
+    
+            // Get installments from price_according_to_mode as fallback
+            const fallbackInstallments = [];
+            Object.values(data.price_according_to_mode || {}).forEach(modeData => {
+                Object.keys(modeData || {}).forEach(duration => {
+                    fallbackInstallments.push(duration);
+                });
+            });
+    
+            setFilterOptions({
+                formats: extractValues(formatsRes, data.modes),
+                locations: extractValues(locationsRes, data.locations?.map(loc => loc.name) || []),
+                days: extractValues(daysRes),
+                installments: extractValues(installmentsRes, [...new Set(fallbackInstallments)])
+            });
+        } catch (error) {
+            console.error('Error fetching filter options:', error);
+            // Fallback to data from course response
+            const fallbackInstallments = [];
+            Object.values(data.price_according_to_mode || {}).forEach(modeData => {
+                Object.keys(modeData || {}).forEach(duration => {
+                    fallbackInstallments.push(duration);
+                });
+            });
+    
+            setFilterOptions({
+                formats: data.modes || ['Online', 'In person'],
+                locations: data.locations?.map(loc => loc.name) || [],
+                days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
+                installments: [...new Set(fallbackInstallments)]
+            });
+        }
+    };
+
+    const generateCourseList = () => {
+        if (!data.locations) return;
+        const courses = [];
+        const isUpcomingCourse = isUpcoming(data.start_end_date);
+        
+        data.locations.forEach(location => {
+            const locationName = location.name || 'Unknown';
+            const isOnline = locationName.toLowerCase() === 'online';
+            
+            // Get pricing for this location type
+            const modeKey = isOnline ? 'Online' : 'In person';
+            const pricing = data.price_according_to_mode?.[modeKey];
+            const price = pricing ? Object.values(pricing)[0]?.price || '€0' : '€0';
+            
+            if (location.slots && location.slots.length > 0) {
+                // Add courses from slots
+                location.slots.forEach(slot => {
+                    // Get all pricing options for this mode
+                    const allPricing = pricing || {};
+                    Object.entries(allPricing).forEach(([duration, priceData]) => {
+                        courses.push({
+                            id: `${locationName}-${slot.class}-${slot.weekday}-${duration}`,
+                            course: `${data.name || 'Year 3'}: ${slot.class.toUpperCase()} 2024`,
+                            dayTime: `${slot.weekday}, ${slot.start_end_time}`,
+                            location: locationName,
+                            fee: priceData.price || price,
+                            seatsLeft: slot.seat_left,
+                            status: parseInt(slot.seat_left) > 0 ? 'Available' : 'Full',
+                            isUpcoming: isUpcomingCourse,
+                            startDate: data.start_end_date,
+                            mode: modeKey,
+                            duration: duration,
+                            weekday: slot.weekday
+                        });
+                    });
+                });
+            } else {
+                // Add flexible timing option for locations without specific slots
+                const allPricing = pricing || {};
+                Object.entries(allPricing).forEach(([duration, priceData]) => {
+                    courses.push({
+                        id: `${locationName}-flexible-${duration}`,
+                        course: `${data.name || 'Year 3'}: FLEXIBLE TIMING`,
+                        dayTime: 'Flexible Timing Available',
+                        location: locationName,
+                        fee: priceData.price || price,
+                        seatsLeft: '5',
+                        status: 'Available',
+                        isUpcoming: isUpcomingCourse,
+                        startDate: data.start_end_date,
+                        mode: modeKey,
+                        duration: duration,
+                        weekday: 'Flexible'
+                    });
+                });
+            }
+        });
+        
+        // Sort: upcoming first, then by date
+        courses.sort((a, b) => {
+            if (a.isUpcoming && !b.isUpcoming) return -1;
+            if (!a.isUpcoming && b.isUpcoming) return 1;
+            return new Date(a.startDate) - new Date(b.startDate);
+        });
+        
+        setCourseList(courses);
+    };
+
+    const handleFilterChange = (filterType, value) => {
+        const newFilters = { ...filters, [filterType]: value };
+        setFilters(newFilters);
+        if (onFiltersChange) onFiltersChange(newFilters);
+    };
+
+    const filteredCourses = courseList.filter(course => {
+        // Format filter (Online/In person mode)
+        const formatMatch = filters.format === 'All Formats' || 
+                           course.mode === filters.format;
+        
+        // Location filter
+        const locationMatch = filters.location === 'All Locations' || 
+                              course.location.toLowerCase() === filters.location.toLowerCase();
+        
+        // Days filter (based on actual weekday from slots)
+        const daysMatch = filters.days === 'All Days' || 
+                         course.weekday === filters.days;
+        
+        // Installment filter (based on duration from price_according_to_mode)
+        const installmentMatch = filters.installment === 'All Installment' || 
+                                course.duration === filters.installment;
+        
+        return formatMatch && locationMatch && daysMatch && installmentMatch;
+    });
+
+    if (!data || !data.locations) {
+        return (
+            <Box component="section" sx={{ bgcolor: '#fff', py: { xs: 4, sm: 6, md: 8 } }}>
+                <Container sx={containerStyles}>
+                    <Box textAlign="center">
+                        <Typography variant="h6">No Data Found</Typography>
+                    </Box>
+                </Container>
+            </Box>
+        );
+    }
+
+    const renderFilter = (label, value, options, type) => (
+        <Grid item xs={12} sm={6} md={3}>
+            <FormControl fullWidth size="small">
+                <InputLabel>{label}</InputLabel>
+                <Select value={value} label={label} onChange={(e) => handleFilterChange(type, e.target.value)}>
+                    <MenuItem value={label}>{label}</MenuItem>
+                    {options.map((option) => <MenuItem key={option} value={option}>{option}</MenuItem>)}
+                </Select>
+            </FormControl>
+        </Grid>
+    );
+
+    const renderFilters = () => (
+        <Grid container spacing={2} sx={{ mb: 3 }}>
+            {renderFilter('All Formats', filters.format, filterOptions.formats, 'format')}
+            {renderFilter('All Locations', filters.location, filterOptions.locations, 'location')}
+            {renderFilter('All Days', filters.days, filterOptions.days, 'days')}
+            {renderFilter('All Installment', filters.installment, filterOptions.installments, 'installment')}
+        </Grid>
+    );
+
+    return (
+        <Box component="section" data-section="course-list" sx={{ bgcolor: '#fff', py: { xs: 3, sm: 4, md: 5 } }}>
+            <Container sx={containerStyles}>
+                {renderFilters()}
+
+                {filteredCourses.length === 0 ? (
+                    <Box textAlign="center" sx={{ py: 6 }}>
+                        <Typography variant="h6" color="text.secondary">No Data Found</Typography>
+                        <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                            {courseList.length === 0 ? 'No courses available for this location.' : 'No courses match your current filters.'}
+                        </Typography>
+                    </Box>
+                ) : (
+                    <TableContainer component={Paper} elevation={0} sx={{ border: '1px solid #e0e0e0' }}>
+                        <Table>
+                            <TableHead sx={{ bgcolor: '#f5f5f5' }}>
+                                <TableRow>
+                                    <TableCell sx={{ fontWeight: 600 }}>Course</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Day & Time</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Fee</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
+                                </TableRow>
+                            </TableHead>
+                            <TableBody>
+                                {filteredCourses.map((course) => (
+                                    <TableRow key={course.id} hover>
+                                        <TableCell>{course.course}</TableCell>
+                                        <TableCell>{course.dayTime}</TableCell>
+                                        <TableCell>
+                                            <Chip 
+                                                label={course.location} 
+                                                size="small" 
+                                                color={course.location.toLowerCase() === 'online' ? 'primary' : 'secondary'} 
+                                                variant={course.location.toLowerCase() === 'wimbledon' ? 'outlined' : 'filled'}
+                                                sx={{ 
+                                                    textTransform: 'capitalize',
+                                                    bgcolor: course.location.toLowerCase() === 'wimbledon' ? '#f3e5f5' : undefined,
+                                                    color: course.location.toLowerCase() === 'wimbledon' ? '#7b1fa2' : undefined,
+                                                    borderColor: course.location.toLowerCase() === 'wimbledon' ? '#7b1fa2' : undefined
+                                                }} 
+                                            />
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 600 }}>{course.fee}</TableCell>
+                                        <TableCell>
+                                            <Button 
+                                                variant="contained" 
+                                                size="small" 
+                                                disabled={course.status === 'Full'} 
+                                                onClick={() => handleRegisterClick(course)}
+                                                sx={{ bgcolor: '#1976d2', '&:hover': { bgcolor: '#1565c0' } }}
+                                            >
+                                                {course.status === 'Full' ? 'Full' : 'Register Now'}
+                                            </Button>
+                                        </TableCell>
+                                    </TableRow>
+                                ))}
+                            </TableBody>
+                        </Table>
+                    </TableContainer>
+                )}
+            </Container>
+        </Box>
+    );
+}
