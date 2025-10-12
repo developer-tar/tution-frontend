@@ -7,6 +7,7 @@ import {
     Card,
     CardContent,
     Container,
+    LinearProgress,
 } from '@mui/material';
 import { containerStyles, h2, spainColor } from '../style';
 
@@ -40,8 +41,41 @@ export default function Year3FormatsSection({ data }) {
         data.modes.length === 0
     ) {
         return (
-            <Box textAlign="center" sx={{ py: 5 }}>
-                <Typography variant="h6">No course formats available.</Typography>
+            <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
+                <Container sx={containerStyles}>
+                    {/* Loading Progress Bar */}
+                    <LinearProgress 
+                        sx={{ 
+                            height: 3,
+                            backgroundColor: '#e3f2fd',
+                            mb: 3,
+                            '& .MuiLinearProgress-bar': {
+                                backgroundColor: '#1976d2'
+                            }
+                        }} 
+                    />
+                    {/* Commented out gradient version */}
+                    {/* 
+                    <LinearProgress 
+                        sx={{ 
+                            height: 3,
+                            backgroundColor: '#f0f0f0',
+                            mb: 3,
+                            '& .MuiLinearProgress-bar': {
+                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
+                            }
+                        }} 
+                    />
+                    */}
+                    <Box textAlign="center" sx={{ py: 5 }}>
+                        <Typography variant="h6">Loading course formats...</Typography>
+                        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                            Please wait while we fetch the available formats
+                        </Typography>
+                        {/* Commented out original no data message */}
+                        {/* <Typography variant="h6">No course formats available.</Typography> */}
+                    </Box>
+                </Container>
             </Box>
         );
     }

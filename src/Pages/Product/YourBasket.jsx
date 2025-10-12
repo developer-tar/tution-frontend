@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -18,19 +18,38 @@ import { Link } from "react-router-dom";
 export default function YourBasket() {
   const dispatch = useDispatch();
   const { items, loading } = useSelector((state) => state.cart);
+  const [updatingItems, setUpdatingItems] = useState(new Set());
 
   useEffect(() => {
     dispatch(fetchCart());
   }, [dispatch]);
 
-  const handleQuantityChange = (cart_id, quantity) => {
+  const handleQuantityChange = async (cart_id, quantity) => {
     if (quantity < 1) return;
-    dispatch(updateCartItem({ cart_id, quantity }))
-      .then(() => dispatch(fetchCart()));
+    
+    setUpdatingItems(prev => new Set(prev).add(cart_id));
+    const item = items.find(i => i.id === cart_id);
+    
+    try {
+      await dispatch(updateCartItem({ cart_id, quantity, price: item?.price || 0 }));
+    } catch (error) {
+      // If API fails, refresh cart to get correct state
+      dispatch(fetchCart());
+    } finally {
+      setUpdatingItems(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(cart_id);
+        return newSet;
+      });
+    }
   };
 
   const handleDelete = (cart_id) => {
-    dispatch(deleteCartItem(cart_id)).then(() => dispatch(fetchCart()));
+    dispatch(deleteCartItem(cart_id))
+      .catch(() => {
+        // If API fails, refresh cart to get correct state
+        dispatch(fetchCart());
+      });
   };
 
   const totalAmount = !loading
@@ -67,11 +86,17 @@ export default function YourBasket() {
               <Typography>£{item.price.toFixed(2)}</Typography>
 
               <Box display="flex" alignItems="center" gap={1}>
-                <IconButton onClick={() => handleQuantityChange(item.id, item.quantity - 1)}>
+                <IconButton 
+                  onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                  disabled={updatingItems.has(item.id)}
+                >
                   <RemoveIcon />
                 </IconButton>
                 <Typography>{item.quantity}</Typography>
-                <IconButton onClick={() => handleQuantityChange(item.id, item.quantity + 1)}>
+                <IconButton 
+                  onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                  disabled={updatingItems.has(item.id)}
+                >
                   <AddIcon />
                 </IconButton>
               </Box>

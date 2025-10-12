@@ -11,18 +11,24 @@ import PricingPlansSection from './Courses/PricingPlansSection';
 import CourseListSection from './Courses/CourseListSection';
 import { containerStyles } from './style';
 import api from "../api";
-import CommonSkeleton from '../components/CommonSkeleton'; 
+import LoadingProgress from '../components/LoadingProgress';
+// import CommonSkeleton from '../components/CommonSkeleton'; 
 
 // function for course 
 
 const Course = () => {
   const { slug } = useParams();
   const [courseData, setCourseData] = useState(null);
-  const [loading, setLoading] = useState(true);
+  // const [loading, setLoading] = useState(true); // Commented out - using global loading now
+  const [apiLoading, setApiLoading] = useState(true); // For API calls only
   const [filters, setFilters] = useState(null);
 
   useEffect(() => {
+    setApiLoading(true); // Reset loading state when slug changes
+    
     const fetchCourse = async () => {
+      const startTime = Date.now();
+      
       try {
         const res = await api.get(`${slug}`); 
         console.log(res.data);
@@ -35,27 +41,74 @@ const Course = () => {
         console.error("Error fetching course:", error);
         setCourseData(null);
       } finally {
-        setLoading(false);
+        setApiLoading(false); // API call finished
+        // Commented out individual loading - now handled globally
+        // const elapsedTime = Date.now() - startTime;
+        // const minLoadingTime = 2000; // 2 seconds
+        // 
+        // if (elapsedTime < minLoadingTime) {
+        //   setTimeout(() => {
+        //     setLoading(false);
+        //   }, minLoadingTime - elapsedTime);
+        // } else {
+        //   setLoading(false);
+        // }
       }
     };
 
     fetchCourse();
   }, [slug]);
 
-  if (loading) {
+  // Commented out individual loading - now handled globally in App.js
+  // if (loading) {
+  //   return (
+  //     <Box sx={{ width: '100%', minHeight: '100vh' }}>
+  //       <LoadingProgress 
+  //         message="Loading course details..."
+  //         subMessage="Please wait while we fetch the course information"
+  //         height={4}
+  //         color="blue"
+  //         sx={{ py: 10 }}
+  //       />
+  //     </Box>
+  //   );
+  // }
+
+  // Show skeleton content while API loads, then show "not found" if no data
+  if (apiLoading) {
     return (
-      <Box sx={{ py: 10, textAlign: 'center' }}>
-        <CommonSkeleton type="card" rows={3} height={50} />
-        <Typography variant="body1" sx={{ mt: 3 }}>
-          Loading course details...
-        </Typography>
+      <Box sx={{ backgroundColor: '#ffffff', pb: 10 }}>
+        {/* Skeleton Header */}
+        <Box sx={{ 
+          height: '200px', 
+          bgcolor: '#f5f5f5', 
+          display: 'flex', 
+          alignItems: 'center', 
+          justifyContent: 'center' 
+        }}>
+          <Typography variant="h6" sx={{ color: 'text.secondary' }}>
+            Loading course...
+          </Typography>
+        </Box>
+        
+        {/* Skeleton Content */}
+        <Container sx={containerStyles}>
+          <Grid container spacing={4} sx={{ mt: 2 }}>
+            <Grid item xs={12} md={8}>
+              <Box sx={{ height: '300px', bgcolor: '#f9f9f9', borderRadius: 2 }}></Box>
+            </Grid>
+            <Grid item xs={12} md={4}>
+              <Box sx={{ height: '200px', bgcolor: '#f9f9f9', borderRadius: 2 }}></Box>
+            </Grid>
+          </Grid>
+        </Container>
       </Box>
     );
   }
 
   if (!courseData) {
     return (
-      <Box sx={{ py: 10, textAlign: 'center' }}>
+      <Box sx={{ py: 10, textAlign: 'center', minHeight: '60vh' }}>
         <Typography variant="h6">Course not found.</Typography>
       </Box>
     );

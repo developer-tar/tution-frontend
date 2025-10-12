@@ -1,7 +1,7 @@
 
 
 import React from 'react';
-import { Box, Typography, Button, Container } from '@mui/material';
+import { Box, Typography, Button, Container, LinearProgress } from '@mui/material';
 import ArrowForwardIcon from '@mui/icons-material/ArrowForward';
 import { button, containerStyles, icon } from '../style';
 
@@ -12,7 +12,36 @@ export default function CourseContent({ data }) {
     return (
       <Box sx={{ py: 4 }}>
         <Container sx={containerStyles}>
+          {/* Loading Progress Bar */}
+          <LinearProgress 
+            sx={{ 
+              height: 3,
+              backgroundColor: '#e3f2fd',
+              mb: 3,
+              '& .MuiLinearProgress-bar': {
+                backgroundColor: '#1976d2'
+              }
+            }} 
+          />
+          {/* Commented out gradient version */}
+          {/* 
+          <LinearProgress 
+            sx={{ 
+              height: 3,
+              backgroundColor: '#f0f0f0',
+              mb: 3,
+              '& .MuiLinearProgress-bar': {
+                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
+              }
+            }} 
+          />
+          */}
           <Typography variant="h6">Loading course details...</Typography>
+          <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+            Please wait while we fetch the course content
+          </Typography>
+          {/* Commented out original loading message */}
+          {/* <Typography variant="h6">Loading course details...</Typography> */}
         </Container>
       </Box>
     );

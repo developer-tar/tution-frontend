@@ -82,7 +82,7 @@ const routes = [
 
 const AppRoutes = () => {
   return (
-    <Suspense fallback={<div>Loading...</div>}>
+    <Suspense fallback={<div></div>}>
       <Routes>
         {routes.map((route, i) => (
           <Route key={i} path={route.path} element={route.element} />

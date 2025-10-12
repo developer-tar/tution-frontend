@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import {
     Box,
     Container,
+    Typography,
     Grid,
     FormControl,
-    InputLabel,
     Select,
     MenuItem,
-    Typography,
+    InputLabel,
     Table,
     TableBody,
     TableCell,
@@ -16,7 +16,10 @@ import {
     TableRow,
     Paper,
     Chip,
-    Button
+    Button,
+    LinearProgress,
+    Snackbar,
+    Alert
 } from '@mui/material';
 import { containerStyles } from '../style';
 import api from '../../api';
@@ -24,6 +27,23 @@ import api from '../../api';
 export default function CourseListSection({ data, onFiltersChange }) {
     
     const handleRegisterClick = (course) => {
+        
+        // Determine mode based on location
+        const isOnline = course.location?.toLowerCase() === 'online';
+        const mode = isOnline ? 'Online' : 'In person';
+        
+        // Get price_id from price_according_to_mode
+        let priceId = null;
+        if (data.price_according_to_mode && data.price_according_to_mode[mode]) {
+            const modeData = data.price_according_to_mode[mode];
+            // Get first available duration's price_id
+            const firstDuration = Object.keys(modeData)[0];
+            if (firstDuration && modeData[firstDuration]) {
+                priceId = modeData[firstDuration].price_id;
+            }
+        }
+        
+        
         // Store course data in localStorage for add-to-cart page
         const cartData = {
             courseData: data,
@@ -33,6 +53,8 @@ export default function CourseListSection({ data, onFiltersChange }) {
             selectedLocation: course.location,
             selectedFee: course.fee,
             selectedDayTime: course.dayTime,
+            selectedMode: mode,
+            selectedPriceId: priceId,
             timestamp: Date.now()
         };
         
@@ -52,6 +74,8 @@ export default function CourseListSection({ data, onFiltersChange }) {
         formats: [], locations: [], days: [], installments: []
     });
     const [courseList, setCourseList] = useState([]);
+    // const [filtersLoading, setFiltersLoading] = useState(false); // Commented out - using global loading
+    // const [courseListLoading, setCourseListLoading] = useState(false); // Commented out - using global loading
 
     const isUpcoming = (startEndDate) => {
         if (!startEndDate) return false;
@@ -68,6 +92,9 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
     const fetchFilterOptions = async () => {
         if (!data) return;
+        
+        // setFiltersLoading(true); // Commented out - using global loading
+        // const startTime = Date.now(); // Commented out - using global loading
         
         try {
             // Fetch filter options from common/data API
@@ -119,11 +146,24 @@ export default function CourseListSection({ data, onFiltersChange }) {
                 days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
                 installments: [...new Set(fallbackInstallments)]
             });
+        } finally {
+            // Commented out individual loading - now handled globally
+            // const elapsedTime = Date.now() - startTime;
+            // const minLoadingTime = 1500; // 1.5 seconds
+            // 
+            // if (elapsedTime < minLoadingTime) {
+            //     setTimeout(() => {
+            //         setFiltersLoading(false);
+            //     }, minLoadingTime - elapsedTime);
+            // } else {
+            //     setFiltersLoading(false);
+            // }
         }
     };
 
     const generateCourseList = () => {
         if (!data.locations) return;
+        // setCourseListLoading(true); // Commented out - using global loading
         const courses = [];
         const isUpcomingCourse = isUpcoming(data.start_end_date);
         
@@ -188,6 +228,11 @@ export default function CourseListSection({ data, onFiltersChange }) {
         });
         
         setCourseList(courses);
+        
+        // Commented out individual loading - now handled globally
+        // setTimeout(() => {
+        //     setCourseListLoading(false);
+        // }, 1000);
     };
 
     const handleFilterChange = (filterType, value) => {
@@ -252,6 +297,26 @@ export default function CourseListSection({ data, onFiltersChange }) {
     return (
         <Box component="section" data-section="course-list" sx={{ bgcolor: '#fff', py: { xs: 3, sm: 4, md: 5 } }}>
             <Container sx={containerStyles}>
+                {/* Commented out individual loading - now handled globally */}
+                {/* 
+                {(filtersLoading || courseListLoading) && (
+                    <Box sx={{ width: '100%', mb: 2 }}>
+                        <LinearProgress 
+                            sx={{ 
+                                height: 3,
+                                backgroundColor: '#e3f2fd',
+                                '& .MuiLinearProgress-bar': {
+                                    backgroundColor: '#1976d2'
+                                }
+                            }} 
+                        />
+                        <Typography variant="body2" sx={{ mt: 1, textAlign: 'center', color: 'text.secondary' }}>
+                            {filtersLoading ? 'Loading filters...' : 'Loading course list...'}
+                        </Typography>
+                    </Box>
+                )}
+                */}
+
                 {renderFilters()}
 
                 {filteredCourses.length === 0 ? (

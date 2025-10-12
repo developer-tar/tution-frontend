@@ -1,13 +1,19 @@
-import React from 'react';
-import { Box, Button, Grid, Typography, Chip, IconButton, Container } from "@mui/material";
+import React, { useState, useEffect } from 'react';
+import { Box, Button, Grid, Typography, Chip, IconButton, Container, Snackbar, Alert } from "@mui/material";
 import ArrowForwardIcon from "@mui/icons-material/ArrowForward";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import PageHeader from "../PageHeader";
 import { button, containerStyles, icon, spainColor } from '../style';
 import { Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { addToCart } from '../../redux/slices/cartSlice';
 
 const AddToCartComponent = () => {
+    const dispatch = useDispatch();
+    const [cartData, setCartData] = useState(null);
+    const [loading, setLoading] = useState(false);
+    const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
 
     const breadcrumbs = [
         { label: "Home", path: "/" },
@@ -15,6 +21,78 @@ const AddToCartComponent = () => {
         { label: " Year 3 Weekly 24", path: "/" },
         { label: "Year 3: EALING 2024 - 2025", path: "/" },
     ];
+
+    // Load cart data from localStorage
+    useEffect(() => {
+        const savedCartData = localStorage.getItem('courseCartData');
+        if (savedCartData) {
+            setCartData(JSON.parse(savedCartData));
+        }
+    }, []);
+
+    const handleAddToCart = async () => {
+        if (!cartData) {
+            setSnackbar({
+                open: true,
+                message: 'No course data found. Please select a course first.',
+                severity: 'error'
+            });
+            return;
+        }
+        
+        setLoading(true);
+        
+        try {
+            const priceId = cartData.selectedCourse?.priceId || 
+                           cartData.selectedCourse?.price_id || 
+                           cartData.selectedPlan?.priceId || 
+                           cartData.selectedPlan?.price_id || 
+                           cartData.selectedPriceId ||
+                           cartData.courseData?.price_id;
+            
+            if (!priceId) {
+                throw new Error('Price ID is missing from course data. Please contact support.');
+            }
+
+            const payload = {
+                product_type: "course",
+                product_id: cartData.courseData.id,
+                quantity: 1,
+                price_id: priceId
+            };
+
+
+            const result = await dispatch(addToCart(payload));
+            
+            if (addToCart.fulfilled.match(result)) {
+                setSnackbar({
+                    open: true,
+                    message: 'Product added to cart successfully!',
+                    severity: 'success'
+                });
+                
+                // Redirect to basket after success
+                setTimeout(() => {
+                    window.location.href = '/basket';
+                }, 1500);
+            } else {
+                throw new Error(result.payload || 'Failed to add to cart');
+            }
+        } catch (error) {
+            console.error('Add to cart error:', error);
+            setSnackbar({
+                open: true,
+                message: error.response?.data?.message || 'Failed to add to cart',
+                severity: 'error'
+            });
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleCloseSnackbar = () => {
+        setSnackbar({ ...snackbar, open: false });
+    };
 
     return (
 
@@ -146,24 +224,46 @@ const AddToCartComponent = () => {
                                 </Typography>
 
                                 {/* Add to Cart Button */}
-                                <Link to="/basket" style={{ textDecoration: "none" }} >
-                                    <Button
-                                        disableElevation
-                                        sx={button}
+                                <Button
+                                    disableElevation
+                                    onClick={handleAddToCart}
+                                    disabled={loading || !cartData}
+                                    sx={{
+                                        ...button,
+                                        '&:disabled': {
+                                            bgcolor: '#ccc',
+                                            color: '#666'
+                                        }
+                                    }}
+                                >
+                                    {loading ? 'Adding to Cart...' : 'Add to Cart'}
+                                    <Box
+                                        sx={icon}
                                     >
-                                        Add to Cart
-                                        <Box
-                                            sx={icon}
-                                        >
-                                            <ArrowForwardIcon sx={{ fontSize: 20, color: '#EF2A1E' }} />
-                                        </Box>
-                                    </Button>
-                                </Link>
+                                        <ArrowForwardIcon sx={{ fontSize: 20, color: loading ? '#666' : '#EF2A1E' }} />
+                                    </Box>
+                                </Button>
                             </Box>
                         </Grid>
                     </Grid>
                 </Container>
             </Box>
+            
+            {/* Success/Error Snackbar */}
+            <Snackbar 
+                open={snackbar.open} 
+                autoHideDuration={4000} 
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert 
+                    onClose={handleCloseSnackbar} 
+                    severity={snackbar.severity} 
+                    sx={{ width: '100%' }}
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </>
     );
 };
