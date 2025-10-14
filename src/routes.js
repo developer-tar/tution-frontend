@@ -57,6 +57,8 @@ const YourBasket = lazy(() => import("./Pages/Product/YourBasket"));
 const CheckoutPage = lazy(() => import("./Pages/CheckoutPage"));
 const OrderConfirmation = lazy(() => import("./Pages/Checkout/OrderConfirmation"));
 const MockExams = lazy(() => import("./Pages/MockExams"));
+const PaymentSuccess = lazy(() => import("./Pages/PaymentSuccess"));
+const PaymentCancel = lazy(() => import("./Pages/PaymentCancel"));
 
 
 const routes = [
@@ -77,7 +79,11 @@ const routes = [
   { path: "/cart", element: <YourBasket /> },               
   { path: "/checkout", element: <CheckoutPage /> },
   { path: "/checkout/:slug", element: <CheckoutPage /> },  
-   { path: "/order-confirmation", element: <OrderConfirmation /> } 
+  { path: "/order-confirmation", element: <OrderConfirmation /> },
+
+  // Payment Pages
+  { path: "/payment-success", element: <PaymentSuccess /> },
+  { path: "/payment-cancel", element: <PaymentCancel /> } 
 ];
 
 const AppRoutes = () => {

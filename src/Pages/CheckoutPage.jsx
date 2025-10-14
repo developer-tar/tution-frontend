@@ -37,10 +37,11 @@ export default function CheckoutPage() {
       </Typography>
 
       <Grid container spacing={4}>
-        <Grid item xs={12} md={8}>
+        {/* Billing & Student Details Section - Commented Out */}
+        {/* <Grid item xs={12} md={8}>
           <BillingDetails />
           <AdditionalInfo />
-        </Grid>
+        </Grid> */}
 
         <Grid item xs={12} md={4}>
           <OrderSummary />
