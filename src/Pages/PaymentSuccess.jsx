@@ -23,7 +23,7 @@ const PaymentSuccess = () => {
   const navigate = useNavigate();
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [showToast, setShowToast] = useState(false);
-  const addStudentUrl = `${process.env.REACT_PARENT_URL}parent/add-student`;
+  const addStudentUrl = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(addStudentUrl);
