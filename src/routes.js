@@ -53,6 +53,7 @@ const SignUp = lazy(() => import("./Pages/SignUp"));
 const CoursesList = lazy(() => import("./Pages/CoursesList"));
 const ProductPage = lazy(() => import("./Pages/Product/ProductPage"));
 const AddToCartComponent = lazy(() => import("./Pages/Product/AddToCartComponent"));
+const AddToCartMockExam = lazy(() => import("./Pages/Product/AddToCartMockExam"));
 const YourBasket = lazy(() => import("./Pages/Product/YourBasket"));
 const CheckoutPage = lazy(() => import("./Pages/CheckoutPage"));
 const OrderConfirmation = lazy(() => import("./Pages/Checkout/OrderConfirmation"));
@@ -73,6 +74,7 @@ const routes = [
   // Product Pages
   { path: "/single-product-page", element: <ProductPage /> },
   { path: "/add-to-cart", element: <AddToCartComponent /> },
+  { path: "/add-to-cart/mock-exam/:slug", element: <AddToCartMockExam /> },
 
   // Cart and Checkout
   { path: "/basket", element: <YourBasket /> },

@@ -21,8 +21,8 @@ import api from "../../api";
 // import { Link } from "react-router-dom";
 
 // Lazy load the modals to avoid initialization issues
-const ParentRegistrationModal = React.lazy(() => import("../../components/ParentRegistrationModal"));
-const ParentLoginModal = React.lazy(() => import("../../components/ParentLoginModal"));
+const ParentRegistrationModal = React.lazy(() => import("../../Components/ParentRegistrationModal"));
+const ParentLoginModal = React.lazy(() => import("../../Components/ParentLoginModal"));
 
 export default function YourBasket() {
   const dispatch = useDispatch();

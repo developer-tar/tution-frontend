@@ -23,7 +23,7 @@ import AccessTimeIcon from "@mui/icons-material/AccessTime";
 import AssessmentIcon from "@mui/icons-material/Assessment";
 import SchoolIcon from "@mui/icons-material/School";
 import { useDispatch } from "react-redux";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../api";
 import { containerStyles } from "./style";
 import CommonSkeleton from "../components/CommonSkeleton";
@@ -42,8 +42,12 @@ export default function MockExams() {
   const [formats, setFormats] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState("");
   const [selectedFormat, setSelectedFormat] = useState("");
+  // Hierarchical category state
+  const [isCategoryOpen, setIsCategoryOpen] = useState(false);
+  const [isFormatOpen, setIsFormatOpen] = useState(false);
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchAll = async () => {
@@ -82,6 +86,56 @@ export default function MockExams() {
     fetchAll();
   }, [selectedCategory, selectedFormat]);
 
+  const handleCategoryClick = (categoryId) => {
+    setSelectedCategory(categoryId);
+    setIsCategoryOpen(false); // Close dropdown after selection
+  };
+  
+  const handleFormatClick = (formatValue) => {
+    setSelectedFormat(formatValue);
+    setIsFormatOpen(false); // Close dropdown after selection
+  };
+  const renderCategoryTree = (nodes, level = 0) => {
+    if (!nodes || nodes.length === 0) return null;
+    return (
+      <Box sx={{ pl: level * 3 }}>
+        {nodes.map((node) => {
+          const hasChildren = node.all_children && node.all_children.length > 0;
+          const isSelected = String(selectedCategory) === String(node.id);
+          return (
+            <Box key={node.id} sx={{ mb: 1 }}>
+              <Box
+                onClick={() => handleCategoryClick(node.id)}
+                sx={{
+                  p: 1.5,
+                  cursor: 'pointer',
+                  borderRadius: 1,
+                  backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
+                  border: isSelected ? '1px solid #2196f3' : '1px solid transparent',
+                  '&:hover': {
+                    backgroundColor: isSelected ? '#e3f2fd' : '#f5f5f5',
+                  },
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 1
+                }}
+              >
+                <Typography sx={{ fontWeight: isSelected ? 600 : 400, flex: 1 }}>
+                  {node.name}
+                </Typography>
+              </Box>
+              {hasChildren && (
+                <Box sx={{ mt: 1 }}>
+                  {renderCategoryTree(node.all_children, level + 1)}
+                </Box>
+              )}
+            </Box>
+          );
+        })}
+      </Box>
+    );
+  };
+
   const handleAddToBasket = () => {
     if (!selected) return;
     const payload = {
@@ -117,33 +171,158 @@ export default function MockExams() {
         <Container sx={containerStyles}>
           {/* Filters */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
-            <Grid item>
-              <select
-                value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                style={{ height: 45, width: 200, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px" }}
-              >
-                <option value="">All Categories</option>
-                {categories.map((c, idx) => (
-                  <option key={idx} value={typeof c === 'string' ? c : c?.value || c?.name || ''}>
-                    {typeof c === 'string' ? c : (c?.label || c?.name || c?.value || '')}
-                  </option>
-                ))}
-              </select>
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2 }}>
+                {/* Dropdown Header */}
+                <Box
+                  onClick={() => setIsCategoryOpen(!isCategoryOpen)}
+                  sx={{
+                    p: 1.5,
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    border: '1px solid #d1d5db',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: '#fff',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    }
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 500 }}>
+                    {selectedCategory ? 
+                      categories.flatMap(c => [c, ...(c.all_children || []).flatMap(sc => [sc, ...(sc.all_children || []).flatMap(ssc => [ssc, ...(ssc.all_children || []).flatMap(sssc => [sssc, ...(sssc.all_children || [])])])])]).find(cat => String(cat.id) === String(selectedCategory))?.name || 'Select Category'
+                      : 'All Categories'
+                    }
+                  </Typography>
+                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                    {isCategoryOpen ? '▲' : '▼'}
+                  </Typography>
+                </Box>
+
+                {/* Dropdown Content */}
+                {isCategoryOpen && (
+                  <Box sx={{ mt: 1, maxHeight: 300, overflow: 'auto', border: '1px solid #d1d5db', borderRadius: 1, p: 1 }}>
+                    {selectedCategory && (
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                        <Button
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedCategory("");
+                          }}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Clear
+                        </Button>
+                      </Box>
+                    )}
+                    {renderCategoryTree(categories)}
+                  </Box>
+                )}
+              </Paper>
             </Grid>
-            <Grid item>
-              <select
-                value={selectedFormat}
-                onChange={(e) => setSelectedFormat(e.target.value)}
-                style={{ height: 45, width: 200, borderRadius: 8, border: "1px solid #d1d5db", padding: "0 12px" }}
-              >
-                <option value="">All Formats</option>
-                {formats.map((f, idx) => (
-                  <option key={idx} value={typeof f === 'string' ? f : f?.value || f?.name || ''}>
-                    {typeof f === 'string' ? f : (f?.label || f?.name || f?.value || '')}
-                  </option>
-                ))}
-              </select>
+            <Grid item xs={12} md={6}>
+              <Paper sx={{ p: 2 }}>
+                {/* Dropdown Header */}
+                <Box
+                  onClick={() => setIsFormatOpen(!isFormatOpen)}
+                  sx={{
+                    p: 1.5,
+                    cursor: 'pointer',
+                    borderRadius: 1,
+                    border: '1px solid #d1d5db',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    backgroundColor: '#fff',
+                    '&:hover': {
+                      backgroundColor: '#f5f5f5',
+                    }
+                  }}
+                >
+                  <Typography sx={{ fontWeight: 500 }}>
+                    {selectedFormat ? 
+                      (formats.find(f => String(f?.id) === String(selectedFormat))?.name || 
+                       formats.find(f => String(f?.value) === String(selectedFormat))?.label || 
+                       formats.find(f => String(f) === String(selectedFormat)) || 
+                       'Select Format')
+                      : 'All Formats'
+                    }
+                  </Typography>
+                  <Typography sx={{ fontSize: '1.2rem', fontWeight: 'bold' }}>
+                    {isFormatOpen ? '▲' : '▼'}
+                  </Typography>
+                </Box>
+
+                {/* Dropdown Content */}
+                {isFormatOpen && (
+                  <Box sx={{ mt: 1, maxHeight: 300, overflow: 'auto', border: '1px solid #d1d5db', borderRadius: 1, p: 1 }}>
+                    {selectedFormat && (
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                        <Button
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedFormat("");
+                            setIsFormatOpen(false);
+                          }}
+                          sx={{ textTransform: 'none' }}
+                        >
+                          Clear
+                        </Button>
+                      </Box>
+                    )}
+                    {/* All Formats option */}
+                    <Box
+                      onClick={() => handleFormatClick("")}
+                      sx={{
+                        p: 1.5,
+                        cursor: 'pointer',
+                        borderRadius: 1,
+                        backgroundColor: selectedFormat === "" ? '#e3f2fd' : 'transparent',
+                        border: selectedFormat === "" ? '1px solid #2196f3' : '1px solid transparent',
+                        '&:hover': {
+                          backgroundColor: selectedFormat === "" ? '#e3f2fd' : '#f5f5f5',
+                        },
+                        mb: 1
+                      }}
+                    >
+                      <Typography sx={{ fontWeight: selectedFormat === "" ? 600 : 400 }}>
+                        All Formats
+                      </Typography>
+                    </Box>
+                    {/* Format list */}
+                    {formats.map((f, idx) => {
+                      const formatValue = typeof f === 'string' ? f : (f?.id || f?.value || f?.name || '');
+                      const formatLabel = typeof f === 'string' ? f : (f?.label || f?.name || f?.value || '');
+                      const isSelected = String(selectedFormat) === String(formatValue);
+                      return (
+                        <Box
+                          key={idx}
+                          onClick={() => handleFormatClick(formatValue)}
+                          sx={{
+                            p: 1.5,
+                            cursor: 'pointer',
+                            borderRadius: 1,
+                            backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
+                            border: isSelected ? '1px solid #2196f3' : '1px solid transparent',
+                            '&:hover': {
+                              backgroundColor: isSelected ? '#e3f2fd' : '#f5f5f5',
+                            },
+                            mb: 1
+                          }}
+                        >
+                          <Typography sx={{ fontWeight: isSelected ? 600 : 400 }}>
+                            {formatLabel}
+                          </Typography>
+                        </Box>
+                      );
+                    })}
+                  </Box>
+                )}
+              </Paper>
             </Grid>
           </Grid>
           {/* Benefits / Value Props */}
@@ -212,7 +391,14 @@ export default function MockExams() {
                       <TableCell align="center">
                         <Button
                           variant="contained"
-                          onClick={() => { setSelected(exam); setOpenModal(true); }}
+                          onClick={() => {
+                            if (exam.slug) {
+                              navigate(`/add-to-cart/mock-exam/${exam.slug}`);
+                            } else {
+                              setSelected(exam);
+                              setOpenModal(true);
+                            }
+                          }}
                           sx={{ textTransform: "none", borderRadius: "20px" }}
                         >
                           Register Now
