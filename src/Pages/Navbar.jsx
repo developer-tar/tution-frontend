@@ -26,7 +26,8 @@ import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import LogoutIcon from "@mui/icons-material/Logout";
 import { Link } from "react-router-dom";
 import { containerStyles } from "./style";
-import { useSelector } from "react-redux";
+import { useSelector, useDispatch } from "react-redux";
+import { fetchCart } from "../redux/slices/cartSlice";
 
 const navItems = [
   { label: "Home", path: "/" },
@@ -40,6 +41,7 @@ const navItems = [
 ];
 
 export default function Navbar() {
+  const dispatch = useDispatch();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [anchorEls, setAnchorEls] = React.useState({});
@@ -51,8 +53,50 @@ export default function Navbar() {
     userInitials: ''
   });
 
-  // const cartItems = useSelector((state) => state.cart.items);
   const cartItems = useSelector((state) => state.cart?.items || []);
+  
+
+  // Initialize auth state and handle all cart/auth logic
+  React.useEffect(() => {
+    const checkAndUpdateAuth = () => {
+      const isLoggedIn = isParentLoggedIn();
+      const userName = getParentName();
+      const userInitials = getParentInitials();
+      
+      setAuthState({
+        isLoggedIn,
+        userName,
+        userInitials
+      });
+
+      // Fetch cart data if user is logged in
+      if (isLoggedIn) {
+        dispatch(fetchCart());
+      }
+    };
+
+    // Initial check
+    checkAndUpdateAuth();
+
+    // Listen for storage changes (login/logout/cart updates)
+    const handleStorageChange = (e) => {
+      // Handle auth changes (login/logout)
+      if (e.key === 'token' || e.key === 'role' || e.key === 'userName' || e.type === 'storage') {
+        checkAndUpdateAuth();
+      }
+      // Handle cart updates
+      else if (e.key === 'cartUpdated') {
+        const currentlyLoggedIn = isParentLoggedIn();
+        if (currentlyLoggedIn) {
+          dispatch(fetchCart());
+          localStorage.removeItem('cartUpdated'); // Clean up
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [dispatch]);
 
   // Check if parent is logged in
   const isParentLoggedIn = () => {
@@ -85,29 +129,6 @@ export default function Navbar() {
     }
   };
 
-  // Check auth state and update component state
-  const checkAuthState = React.useCallback(() => {
-    const isLoggedIn = isParentLoggedIn();
-    const userName = getParentName();
-    const userInitials = getParentInitials();
-    setAuthState({ isLoggedIn, userName, userInitials });
-  }, []);
-
-  // Check auth state on component mount and storage changes
-  React.useEffect(() => {
-    checkAuthState();
-    
-    // Listen for storage events (including manual triggers)
-    const handleStorageChange = () => {
-      checkAuthState();
-    };
-    
-    window.addEventListener('storage', handleStorageChange);
-    
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-    };
-  }, [checkAuthState]);
 
   const handleMenuOpen = (event, label) => {
     setAnchorEls((prev) => ({ ...prev, [label]: event.currentTarget }));
@@ -133,6 +154,9 @@ export default function Navbar() {
     
     // Close menu
     handleParentMenuClose();
+    
+    // Clear cart state on logout
+    dispatch({ type: 'cart/clearCart' });
     
     // Update auth state immediately without page refresh
     setAuthState({ isLoggedIn: false, userName: '', userInitials: '' });
@@ -252,11 +276,24 @@ export default function Navbar() {
                 </>
               )}
 
-              <IconButton component={Link} to="/basket" sx={{ color: "inherit", ml: 1 }}>
-                <Badge badgeContent={cartItems.length} color="secondary">
-                  <ShoppingCartIcon />
-                </Badge>
-              </IconButton>
+              {authState.isLoggedIn && (
+                <IconButton component={Link} to="/basket" sx={{ color: "inherit", ml: 1 }}>
+                  <Badge 
+                    badgeContent={cartItems.length > 0 ? cartItems.length : null} 
+                    color="error"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#f44336',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  >
+                    <ShoppingCartIcon />
+                  </Badge>
+                </IconButton>
+              )}
             </Box>
           ) : (
             <>
@@ -308,12 +345,25 @@ export default function Navbar() {
                           ))}
                       </React.Fragment>
                     ))}
-                    <ListItem button component={Link} to="/basket">
-                      <Badge badgeContent={cartItems.length} color="secondary">
-                        <ShoppingCartIcon />
-                      </Badge>
-                      <ListItemText primary="Cart" sx={{ ml: 1 }} />
-                    </ListItem>
+                    {authState.isLoggedIn && (
+                      <ListItem button component={Link} to="/basket">
+                        <Badge 
+                          badgeContent={cartItems.length > 0 ? cartItems.length : null} 
+                          color="error"
+                          sx={{
+                            '& .MuiBadge-badge': {
+                              backgroundColor: '#f44336',
+                              color: 'white',
+                              fontWeight: 'bold',
+                              fontSize: '0.75rem'
+                            }
+                          }}
+                        >
+                          <ShoppingCartIcon />
+                        </Badge>
+                        <ListItemText primary="Cart" sx={{ ml: 1 }} />
+                      </ListItem>
+                    )}
                   </List>
                 </Box>
               </Drawer>

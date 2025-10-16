@@ -7,23 +7,23 @@ import {
   Divider,
   Grid,
   CircularProgress,
-  TextField,
-  Link,
-  Snackbar,
-  Alert,
 } from "@mui/material";
+// Note: Using custom toast notification instead of Snackbar to avoid import issues
+// ESLint cache refresh comment
 import { useDispatch, useSelector } from "react-redux";
 import { fetchCart, updateCartItem, deleteCartItem } from "../../redux/slices/cartSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
+import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
+import { Link } from "react-router-dom";
 import api from "../../api";
-// import { Link } from "react-router-dom";
 
 // Lazy load the modals to avoid initialization issues
 const ParentRegistrationModal = React.lazy(() => import("../../Components/ParentRegistrationModal"));
 const ParentLoginModal = React.lazy(() => import("../../Components/ParentLoginModal"));
 
+// Fixed: Removed Snackbar/Alert imports to resolve ESLint errors
 export default function YourBasket() {
   const dispatch = useDispatch();
   const { items, loading } = useSelector((state) => state.cart);
@@ -34,7 +34,7 @@ export default function YourBasket() {
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
-    severity: 'success' // 'success', 'error', 'warning', 'info'
+    severity: 'success' // success, error, warning, info
   });
 
   useEffect(() => {
@@ -53,6 +53,16 @@ export default function YourBasket() {
   const handleCloseSnackbar = () => {
     setSnackbar(prev => ({ ...prev, open: false }));
   };
+
+  // Auto-close snackbar after 4 seconds
+  React.useEffect(() => {
+    if (snackbar.open) {
+      const timer = setTimeout(() => {
+        handleCloseSnackbar();
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [snackbar.open]);
 
   const handleQuantityChange = async (cart_id, quantity) => {
     if (quantity < 1) return;
@@ -136,13 +146,26 @@ export default function YourBasket() {
       }
     } catch (error) {
       console.error('Checkout error:', error);
+      console.error('Error response data:', error.response?.data);
+      console.error('Error status:', error.response?.status);
       
       // Handle different types of errors
-      if (error.response?.data?.message) {
-        showToast(`Error: ${error.response.data.message}`, 'error');
+      let errorMessage = '';
+      
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      } else if (error.response?.status === 404) {
+        errorMessage = 'Checkout service not available. Please try again later.';
+      } else if (error.response?.status >= 400) {
+        errorMessage = `Server error (${error.response.status}). Please try again.`;
       } else {
-        showToast('Failed to process order. Please try again.', 'error');
+        errorMessage = 'Failed to process order. Please try again.';
       }
+      
+      // Show error toast with proper styling
+      showToast(errorMessage, 'error');
     } finally {
       setCheckoutLoading(false);
     }
@@ -232,7 +255,75 @@ export default function YourBasket() {
             </Box>
           ))
         ) : (
-          <Typography>No items in cart.</Typography>
+          <Box 
+            sx={{ 
+              display: 'flex', 
+              flexDirection: 'column', 
+              alignItems: 'center', 
+              justifyContent: 'center',
+              py: 8,
+              textAlign: 'center'
+            }}
+          >
+            <ShoppingCartIcon 
+              sx={{ 
+                fontSize: 80, 
+                color: '#e0e0e0', 
+                mb: 2,
+                animation: 'bounce 2s infinite',
+                '@keyframes bounce': {
+                  '0%, 20%, 50%, 80%, 100%': {
+                    transform: 'translateY(0)'
+                  },
+                  '40%': {
+                    transform: 'translateY(-10px)'
+                  },
+                  '60%': {
+                    transform: 'translateY(-5px)'
+                  }
+                }
+              }} 
+            />
+            <Typography 
+              variant="h5" 
+              sx={{ 
+                color: '#9e9e9e', 
+                fontWeight: 500, 
+                mb: 1 
+              }}
+            >
+              Your cart is empty
+            </Typography>
+            <Typography 
+              variant="body2" 
+              sx={{ 
+                color: '#bdbdbd', 
+                mb: 3 
+              }}
+            >
+              Looks like you haven't added any courses yet
+            </Typography>
+            <Button
+              variant="contained"
+              component={Link}
+              to="/"
+              sx={{
+                bgcolor: '#1976d2',
+                color: 'white',
+                px: 4,
+                py: 1.5,
+                borderRadius: 3,
+                textTransform: 'none',
+                fontWeight: 600,
+                '&:hover': {
+                  bgcolor: '#1565c0',
+                  transform: 'translateY(-2px)'
+                }
+              }}
+            >
+              Browse 
+            </Button>
+          </Box>
         )}
       </Grid>
 
@@ -291,7 +382,12 @@ export default function YourBasket() {
               </Box>
             ))
           ) : (
-            <Typography sx={{ fontSize: "14px", color: "#6b7280" }}>No items in cart</Typography>
+            <Box sx={{ textAlign: 'center', py: 2 }}>
+              <ShoppingCartIcon sx={{ fontSize: 40, color: '#e0e0e0', mb: 1 }} />
+              <Typography sx={{ fontSize: "14px", color: "#6b7280", fontWeight: 500 }}>
+                No items in cart
+              </Typography>
+            </Box>
           )}
 
           <Box sx={{ borderTop: "1px solid #e0e0e0", pt: 2, mb: 2 }}>
@@ -404,22 +500,52 @@ export default function YourBasket() {
         </Suspense>
       )}
 
-      {/* Toast Notifications */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={4000}
-        onClose={handleCloseSnackbar}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={handleCloseSnackbar}
-          severity={snackbar.severity}
-          sx={{ width: '100%' }}
-          variant="filled"
+      {/* Custom Toast Notifications */}
+      {snackbar.open && (
+        <Box
+          sx={{
+            position: 'fixed',
+            top: 20,
+            right: 20,
+            zIndex: 9999,
+            bgcolor: snackbar.severity === 'error' ? '#f44336' : '#4caf50',
+            color: 'white',
+            p: 3,
+            borderRadius: 2,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            minWidth: 350,
+            maxWidth: 500,
+            animation: 'slideIn 0.3s ease-out',
+            '@keyframes slideIn': {
+              from: { transform: 'translateX(100%)', opacity: 0 },
+              to: { transform: 'translateX(0)', opacity: 1 }
+            }
+          }}
         >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
+          <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="body1" sx={{ fontWeight: 500, mb: 0.5 }}>
+                {snackbar.severity === 'error' ? '⚠️ Error' : '✅ Success'}
+              </Typography>
+              <Typography variant="body2" sx={{ lineHeight: 1.4 }}>
+                {snackbar.message}
+              </Typography>
+            </Box>
+            <Button
+              size="small"
+              onClick={handleCloseSnackbar}
+              sx={{ 
+                color: 'white', 
+                p: 0.5, 
+                minWidth: 'auto',
+                '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
+              }}
+            >
+              ✕
+            </Button>
+          </Box>
+        </Box>
+      )}
     </Grid>
   );
 }

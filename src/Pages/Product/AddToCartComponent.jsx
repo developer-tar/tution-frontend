@@ -71,6 +71,10 @@ const AddToCartComponent = () => {
                     severity: 'success'
                 });
                 
+                // Trigger cart refresh in navbar
+                localStorage.setItem('cartUpdated', Date.now().toString());
+                window.dispatchEvent(new StorageEvent('storage', { key: 'cartUpdated' }));
+                
                 // Redirect to basket after success
                 setTimeout(() => {
                     window.location.href = '/basket';
