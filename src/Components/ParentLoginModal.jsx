@@ -96,7 +96,8 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
         if (response.data.data?.access_token) {
           localStorage.setItem('token', response.data.data.access_token);
           localStorage.setItem('role', response.data.data.role);
-          localStorage.setItem('userName', response.data.data.full_name || formData.email.split('@')[0]);
+          // localStorage.setItem('userName', response.data.data.full_name || formData.email.split('@')[0]);
+          localStorage.setItem('userData', JSON.stringify(response.data.data));
         }
         
         onSuccess && onSuccess(response.data);
