@@ -29,6 +29,8 @@ import { containerStyles } from "./style";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchCart } from "../redux/slices/cartSlice";
 
+const ADMIN_URL = process.env.REACT_APP_PARENT_URL;
+
 const navItems = [
   { label: "Home", path: "/" },
   { label: "Courses", items: [{ label: "Course List", path: "/course-list" }] },
@@ -129,6 +131,13 @@ export default function Navbar() {
     }
   };
 
+  const handleAdminRedirect = () => {
+    if (!ADMIN_URL) {
+      console.error('Admin URL is not configured. Please set REACT_APP_PARENT_URL in your .env file.');
+      return;
+    }
+    window.location.href = ADMIN_URL;
+  };
 
   const handleMenuOpen = (event, label) => {
     setAnchorEls((prev) => ({ ...prev, [label]: event.currentTarget }));
@@ -206,7 +215,16 @@ export default function Navbar() {
           {!isMobile ? (
             <Box sx={{ display: "flex", gap: { md: 1, lg: 2 }, alignItems: "center", flexWrap: "nowrap" }}>
               {navItems.map((item) => renderMenu(item))}
-              
+
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleAdminRedirect}
+                sx={{ ml: 1, textTransform: "none" }}
+              >
+                Login
+              </Button>
+
               {/* Parent Portal Indicator */}
               {authState.isLoggedIn && (
                 <>
@@ -297,6 +315,14 @@ export default function Navbar() {
             </Box>
           ) : (
             <>
+              <Button
+                variant="outlined"
+                size="small"
+                onClick={handleAdminRedirect}
+                sx={{ mr: 1, textTransform: "none" }}
+              >
+                Login
+              </Button>
               <IconButton onClick={() => setDrawerOpen(true)}><MenuIcon /></IconButton>
               <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
                 <Box sx={{ width: 250 }}>

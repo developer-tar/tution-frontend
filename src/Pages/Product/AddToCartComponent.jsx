@@ -30,6 +30,53 @@ const AddToCartComponent = () => {
         }
     }, []);
 
+    // Derived display values from cartData
+    const courseName = cartData?.courseName || cartData?.courseData?.name || 'Course details';
+    const academicYear = cartData?.courseData?.acdemicyear;
+    const courseImage = cartData?.courseData?.image || "/assets/images/product-img.png";
+
+    const primaryLocation = Array.isArray(cartData?.courseData?.locations)
+        ? cartData.courseData.locations[0]
+        : null;
+    const primarySlot = primaryLocation?.slots && primaryLocation.slots[0];
+
+    const selectedLocationName = cartData?.selectedLocation
+        || cartData?.selectedCourse?.location
+        || primaryLocation?.name;
+
+    const locationAcademicLabel = [
+        selectedLocationName ? selectedLocationName.toUpperCase() : null,
+        academicYear || null
+    ].filter(Boolean).join(' ');
+
+    const headerTitle = locationAcademicLabel
+        ? `${courseName}: ${locationAcademicLabel}`
+        : courseName;
+
+    const timeLabel = cartData?.selectedDayTime
+        ? cartData.selectedDayTime
+        : primarySlot
+            ? `${primarySlot.weekday} ${primarySlot.start_end_time}`
+            : 'Schedule to be confirmed';
+
+    // Prefer price derived directly from course API based on selected mode & duration
+    const derivedPriceFromApi = (() => {
+        const mode = cartData?.selectedMode;
+        const duration = cartData?.selectedDuration;
+        const pricing = cartData?.courseData?.price_according_to_mode;
+        if (mode && duration && pricing && pricing[mode] && pricing[mode][duration]) {
+            return pricing[mode][duration].price;
+        }
+        return null;
+    })();
+
+    const displayPrice = derivedPriceFromApi
+        || cartData?.selectedPrice
+        || cartData?.selectedPlan?.price
+        || cartData?.selectedFee
+        || cartData?.selectedCourse?.fee
+        || '€0';
+
     const handleAddToCart = async () => {
         if (!cartData) {
             setSnackbar({
@@ -102,7 +149,7 @@ const AddToCartComponent = () => {
 
         <>
             <PageHeader
-                title="Year 3: EALING 2024 – 2025"
+                title={headerTitle}
                 // subtitle="Find the perfect course for your child"
                 breadcrumbs={breadcrumbs}
             />
@@ -128,7 +175,7 @@ const AddToCartComponent = () => {
                                 <ArrowBackIcon />
                             </IconButton>
                             <Typography sx={{ fontSize: "14px", fontWeight: 500, color: "#1f2937" }}>
-                                Year 3: EALING 2024 – 2025
+                                {headerTitle}
                             </Typography>
                         </Box>
                         <Link to="/single-product-page" style={{ textDecoration: "none" }} >
@@ -166,8 +213,8 @@ const AddToCartComponent = () => {
                             >
                                 <Box
                                     component="img"
-                                    src="/assets/images/product-img.png"
-                                    alt="Wonder Math Book"
+                                    src={courseImage}
+                                    alt={courseName}
                                     sx={{
                                         width: "100%",
                                         maxWidth: "300px",
@@ -191,15 +238,23 @@ const AddToCartComponent = () => {
                                         fontSize: { xs: "24px", md: "32px" },
                                     }}
                                 >
-                                    Year 3:   <Box
-                                        component="span"
-                                        sx={spainColor}
-                                    >EALING 2024 – 2025</Box>
+                                    {courseName}
+                                    {locationAcademicLabel && (
+                                        <>
+                                            {": "}
+                                            <Box
+                                                component="span"
+                                                sx={spainColor}
+                                            >
+                                                {locationAcademicLabel}
+                                            </Box>
+                                        </>
+                                    )}
                                 </Typography>
 
                                 {/* Time Badge */}
                                 <Chip
-                                    label="Sat 9.00am-10.45am"
+                                    label={timeLabel}
                                     sx={{
                                         backgroundColor: "#e0e7ff",
                                         color: "#4f46e5",
@@ -224,7 +279,7 @@ const AddToCartComponent = () => {
                                         mb: 3,
                                     }}
                                 >
-                                    £100.00
+                                    {displayPrice}
                                 </Typography>
 
                                 {/* Add to Cart Button */}

@@ -18,14 +18,6 @@ export default function AboutUsSection() {
     >
       <Container maxWidth="lg">
         <Box sx={{ maxWidth: "600px" }}>
-          {/* Breadcrumbs */}
-          <Breadcrumbs sx={{ mb: 2 }} separator="›" aria-label="breadcrumb">
-            <Link underline="hover" href="/" sx={{ fontSize: 14, color: "#555" }}>
-              Home
-            </Link>
-            <Typography sx={{ fontSize: 14, fontWeight: 600 }}>About Us</Typography>
-          </Breadcrumbs>
-
           {/* Heading and Subheading */}
           <Typography
             variant={isMobile ? "h5" : "h3"}

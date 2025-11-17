@@ -15,7 +15,7 @@ const PageHeader = ({ title, subtitle, breadcrumbs }) => {
       }}
     >
           <Container sx={containerStyles}>
-      <Breadcrumbs  aria-label="breadcrumb" sx={{ mb: 2 }}>
+      {/* <Breadcrumbs  aria-label="breadcrumb" sx={{ mb: 2 }}>
       <img src="assets/images/home-vector.png" alt="" />
         {breadcrumbs.map((item, index) => (
           <Link 
@@ -27,7 +27,7 @@ const PageHeader = ({ title, subtitle, breadcrumbs }) => {
             {item.label}
           </Link>
         ))}
-      </Breadcrumbs>
+      </Breadcrumbs> */}
 
       <Typography
         variant="h4"

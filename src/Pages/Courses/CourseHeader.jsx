@@ -28,11 +28,11 @@ export default function CourseHeader({ data }) {
       }}
     >
       <Container sx={containerStyles}>
-        <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
+        {/* <Breadcrumbs aria-label="breadcrumb" sx={{ mb: 2 }}>
           <img src="assets/images/home-vector.png" alt="" />
           <Link underline="hover" color="inherit" href="#">Courses</Link>
           <Typography color="text.primary">{data.name}</Typography>
-        </Breadcrumbs>
+        </Breadcrumbs> */}
 
         <Chip
           label={data.name}
