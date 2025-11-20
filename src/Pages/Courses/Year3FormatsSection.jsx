@@ -13,26 +13,23 @@ import { containerStyles, h2, spainColor } from '../style';
 
 export default function Year3FormatsSection({ data }) {
 
-    const handleRegisterClick = (mode) => {
-        // Scroll to CourseListSection
-        const courseListSection = document.querySelector('[data-section="course-list"]');
-        if (courseListSection) {
-            courseListSection.scrollIntoView({ 
-                behavior: 'smooth',
-                block: 'center'
-            });
-            
-            // Add hover effect temporarily
-            courseListSection.style.transform = 'scale(1.02)';
-            courseListSection.style.transition = 'all 0.3s ease';
-            courseListSection.style.boxShadow = '0 8px 25px rgba(0,0,0,0.15)';
-            
-            // Remove hover effect after 2 seconds
-            setTimeout(() => {
-                courseListSection.style.transform = 'scale(1)';
-                courseListSection.style.boxShadow = 'none';
-            }, 2000);
-        }
+    const handleRegisterClick = (format) => {
+        // Store course data in localStorage for add-to-cart page
+        const cartData = {
+            courseData: data,
+            courseName: data.name,
+            courseSlug: data.slug,
+            selectedMode: format.mode,
+            selectedDuration: format.duration,
+            selectedPrice: format.price,
+            selectedPriceId: format.priceId,
+            timestamp: Date.now()
+        };
+
+        localStorage.setItem('courseCartData', JSON.stringify(cartData));
+
+        // Navigate to add-to-cart page
+        window.location.href = '/add-to-cart';
     };
 
     if (
@@ -44,15 +41,15 @@ export default function Year3FormatsSection({ data }) {
             <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
                     {/* Loading Progress Bar */}
-                    <LinearProgress 
-                        sx={{ 
+                    <LinearProgress
+                        sx={{
                             height: 3,
                             backgroundColor: '#e3f2fd',
                             mb: 3,
                             '& .MuiLinearProgress-bar': {
                                 backgroundColor: '#1976d2'
                             }
-                        }} 
+                        }}
                     />
                     {/* Commented out gradient version */}
                     {/* 
@@ -84,11 +81,12 @@ export default function Year3FormatsSection({ data }) {
     const formats = data.modes.map((mode, idx) => {
         // Get pricing for this mode
         const pricing = data.price_according_to_mode?.[mode];
-        const firstPriceOption = pricing ? Object.values(pricing)[0] : null;
+        const duration = pricing ? Object.keys(pricing)[0] : null;
+        const firstPriceOption = pricing && duration ? pricing[duration] : null;
         const price = firstPriceOption ? firstPriceOption.price : '£1,465';
-        
+
         // Get mode-specific features
-        const modeFeatures = mode === 'Online' 
+        const modeFeatures = mode === 'Online'
             ? data.online_mode_features || data.features || []
             : data.in_person_mode_features || data.features || [];
 
@@ -100,6 +98,7 @@ export default function Year3FormatsSection({ data }) {
             price: price,
             features: modeFeatures,
             mode: mode,
+            duration: duration,
             priceId: firstPriceOption ? firstPriceOption.price_id : null,
         };
     });
@@ -167,10 +166,10 @@ export default function Year3FormatsSection({ data }) {
                                             </Box>
                                         ))}
                                     </Box>
-                                    <Button 
-                                        variant="contained" 
-                                        size="large" 
-                                        onClick={() => handleRegisterClick(f.mode)}
+                                    <Button
+                                        variant="contained"
+                                        size="large"
+                                        onClick={() => handleRegisterClick(f)}
                                         sx={{ bgcolor: f.headerBg, color: 'white', fontWeight: 700, px: 4, py: 1.5, borderRadius: 3, textTransform: 'uppercase', '&:hover': { bgcolor: f.headerBg, transform: 'translateY(-2px)' } }}
                                     >
                                         Register Now

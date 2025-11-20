@@ -25,25 +25,31 @@ import { containerStyles } from '../style';
 import api from '../../api';
 
 export default function CourseListSection({ data, onFiltersChange }) {
-    
+
     const handleRegisterClick = (course) => {
-        
+
         // Determine mode based on location
         const isOnline = course.location?.toLowerCase() === 'online';
         const mode = isOnline ? 'Online' : 'In person';
-        
+
         // Get price_id from price_according_to_mode
         let priceId = null;
         if (data.price_according_to_mode && data.price_according_to_mode[mode]) {
             const modeData = data.price_according_to_mode[mode];
-            // Get first available duration's price_id
-            const firstDuration = Object.keys(modeData)[0];
-            if (firstDuration && modeData[firstDuration]) {
-                priceId = modeData[firstDuration].price_id;
+
+            // Use the duration from the course object if available
+            if (course.duration && modeData[course.duration]) {
+                priceId = modeData[course.duration].price_id;
+            } else {
+                // Fallback to first available duration
+                const firstDuration = Object.keys(modeData)[0];
+                if (firstDuration && modeData[firstDuration]) {
+                    priceId = modeData[firstDuration].price_id;
+                }
             }
         }
-        
-        
+
+
         // Store course data in localStorage for add-to-cart page
         const cartData = {
             courseData: data,
@@ -57,9 +63,9 @@ export default function CourseListSection({ data, onFiltersChange }) {
             selectedPriceId: priceId,
             timestamp: Date.now()
         };
-        
+
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
-        
+
         // Navigate to add-to-cart page
         window.location.href = '/add-to-cart';
     };
@@ -92,10 +98,10 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
     const fetchFilterOptions = async () => {
         if (!data) return;
-        
+
         // setFiltersLoading(true); // Commented out - using global loading
         // const startTime = Date.now(); // Commented out - using global loading
-        
+
         try {
             // Fetch filter options from common/data API
             const [locationsRes, daysRes, formatsRes, installmentsRes] = await Promise.all([
@@ -104,7 +110,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
                 api.get('/common/data?param=Modes'),
                 api.get('/common/data?param=BillingPeriods')
             ]);
-    
+
             // Helper function to extract values from API response
             const extractValues = (response, fallback) => {
                 const items = response?.data?.data || fallback || [];
@@ -115,7 +121,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     return item;
                 });
             };
-    
+
             // Get installments from price_according_to_mode as fallback
             const fallbackInstallments = [];
             Object.values(data.price_according_to_mode || {}).forEach(modeData => {
@@ -123,7 +129,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     fallbackInstallments.push(duration);
                 });
             });
-    
+
             setFilterOptions({
                 formats: extractValues(formatsRes, data.modes),
                 locations: extractValues(locationsRes, data.locations?.map(loc => loc.name) || []),
@@ -139,7 +145,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     fallbackInstallments.push(duration);
                 });
             });
-    
+
             setFilterOptions({
                 formats: data.modes || ['Online', 'In person'],
                 locations: data.locations?.map(loc => loc.name) || [],
@@ -166,16 +172,16 @@ export default function CourseListSection({ data, onFiltersChange }) {
         // setCourseListLoading(true); // Commented out - using global loading
         const courses = [];
         const isUpcomingCourse = isUpcoming(data.start_end_date);
-        
+
         data.locations.forEach(location => {
             const locationName = location.name || 'Unknown';
             const isOnline = locationName.toLowerCase() === 'online';
-            
+
             // Get pricing for this location type
             const modeKey = isOnline ? 'Online' : 'In person';
             const pricing = data.price_according_to_mode?.[modeKey];
             const price = pricing ? Object.values(pricing)[0]?.price || '€0' : '€0';
-            
+
             if (location.slots && location.slots.length > 0) {
                 // Add courses from slots
                 location.slots.forEach(slot => {
@@ -219,16 +225,16 @@ export default function CourseListSection({ data, onFiltersChange }) {
                 });
             }
         });
-        
+
         // Sort: upcoming first, then by date
         courses.sort((a, b) => {
             if (a.isUpcoming && !b.isUpcoming) return -1;
             if (!a.isUpcoming && b.isUpcoming) return 1;
             return new Date(a.startDate) - new Date(b.startDate);
         });
-        
+
         setCourseList(courses);
-        
+
         // Commented out individual loading - now handled globally
         // setTimeout(() => {
         //     setCourseListLoading(false);
@@ -243,21 +249,21 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
     const filteredCourses = courseList.filter(course => {
         // Format filter (Online/In person mode)
-        const formatMatch = filters.format === 'All Formats' || 
-                           course.mode === filters.format;
-        
+        const formatMatch = filters.format === 'All Formats' ||
+            course.mode === filters.format;
+
         // Location filter
-        const locationMatch = filters.location === 'All Locations' || 
-                              course.location.toLowerCase() === filters.location.toLowerCase();
-        
+        const locationMatch = filters.location === 'All Locations' ||
+            course.location.toLowerCase() === filters.location.toLowerCase();
+
         // Days filter (based on actual weekday from slots)
-        const daysMatch = filters.days === 'All Days' || 
-                         course.weekday === filters.days;
-        
+        const daysMatch = filters.days === 'All Days' ||
+            course.weekday === filters.days;
+
         // Installment filter (based on duration from price_according_to_mode)
-        const installmentMatch = filters.installment === 'All Installment' || 
-                                course.duration === filters.installment;
-        
+        const installmentMatch = filters.installment === 'All Installment' ||
+            course.duration === filters.installment;
+
         return formatMatch && locationMatch && daysMatch && installmentMatch;
     });
 
@@ -344,25 +350,25 @@ export default function CourseListSection({ data, onFiltersChange }) {
                                         <TableCell>{course.course}</TableCell>
                                         <TableCell>{course.dayTime}</TableCell>
                                         <TableCell>
-                                            <Chip 
-                                                label={course.location} 
-                                                size="small" 
-                                                color={course.location.toLowerCase() === 'online' ? 'primary' : 'secondary'} 
+                                            <Chip
+                                                label={course.location}
+                                                size="small"
+                                                color={course.location.toLowerCase() === 'online' ? 'primary' : 'secondary'}
                                                 variant={course.location.toLowerCase() === 'wimbledon' ? 'outlined' : 'filled'}
-                                                sx={{ 
+                                                sx={{
                                                     textTransform: 'capitalize',
                                                     bgcolor: course.location.toLowerCase() === 'wimbledon' ? '#f3e5f5' : undefined,
                                                     color: course.location.toLowerCase() === 'wimbledon' ? '#7b1fa2' : undefined,
                                                     borderColor: course.location.toLowerCase() === 'wimbledon' ? '#7b1fa2' : undefined
-                                                }} 
+                                                }}
                                             />
                                         </TableCell>
                                         <TableCell sx={{ fontWeight: 600 }}>{course.fee}</TableCell>
                                         <TableCell>
-                                            <Button 
-                                                variant="contained" 
-                                                size="small" 
-                                                disabled={course.status === 'Full'} 
+                                            <Button
+                                                variant="contained"
+                                                size="small"
+                                                disabled={course.status === 'Full'}
                                                 onClick={() => handleRegisterClick(course)}
                                                 sx={{ bgcolor: '#1976d2', '&:hover': { bgcolor: '#1565c0' } }}
                                             >
