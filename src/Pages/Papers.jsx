@@ -31,7 +31,7 @@ import CommonModal from "../components/Modal";
 import { addToCart, fetchCart } from "../redux/slices/cartSlice";
 import PageHeader from "./PageHeader";
 
-export default function MockExams() {
+export default function Papers() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [alert, setAlert] = useState({ open: false, message: "" });
@@ -55,7 +55,7 @@ export default function MockExams() {
       try {
         // Fetch categories and formats in parallel
         const [catsRes, formatsRes] = await Promise.all([
-          api.get("/mock-exam/categories"),
+          api.get("/paper/categories"),
           api.get("/common/data", { params: { param: "Formats" } }),
         ]);
         const catList = (catsRes.data?.data || catsRes.data || []).map((c) => c);
@@ -63,22 +63,38 @@ export default function MockExams() {
         setCategories(Array.isArray(catList) ? catList : []);
         setFormats(Array.isArray(formatList) ? formatList : []);
 
-        // Fetch first page of mock exams with filters applied
-        const first = await api.get("/mock-exam/view", { params: { page: 1, category: selectedCategory || undefined, format: selectedFormat || undefined } });
+        // Fetch first page of papers with filters applied
+        const first = await api.get("/paper/view", { 
+          params: { 
+            page: 1, 
+            category_id: selectedCategory || undefined, 
+            format_id: selectedFormat || undefined 
+          } 
+        });
         const payload = first.data?.data || {};
         let combined = payload.data || [];
         const totalPages = payload.last_page || 1;
         if (totalPages > 1) {
           const reqs = [];
-          for (let p = 2; p <= totalPages; p += 1) reqs.push(api.get("/mock-exam/view", { params: { page: p, category: selectedCategory || undefined, format: selectedFormat || undefined } }));
+          for (let p = 2; p <= totalPages; p += 1) {
+            reqs.push(api.get("/paper/view", { 
+              params: { 
+                page: p, 
+                category_id: selectedCategory || undefined, 
+                format_id: selectedFormat || undefined 
+              } 
+            }));
+          }
           const results = await Promise.allSettled(reqs);
           results.forEach((r) => {
-            if (r.status === "fulfilled" && r.value?.data?.data?.data) combined = combined.concat(r.value.data.data.data);
+            if (r.status === "fulfilled" && r.value?.data?.data?.data) {
+              combined = combined.concat(r.value.data.data.data);
+            }
           });
         }
         setItems(combined);
       } catch (err) {
-        console.error("Failed to fetch mock exams:", err);
+        console.error("Failed to fetch papers:", err);
       } finally {
         setLoading(false);
       }
@@ -95,6 +111,7 @@ export default function MockExams() {
     setSelectedFormat(formatValue);
     setIsFormatOpen(false); // Close dropdown after selection
   };
+  
   const renderCategoryTree = (nodes, level = 0) => {
     if (!nodes || nodes.length === 0) return null;
     return (
@@ -171,9 +188,10 @@ export default function MockExams() {
   const handleAddToBasket = () => {
     if (!selected) return;
     const payload = {
-      product_type: "mock_exam",
+      product_type: selected.product_type || "paper", // Use product_type from API response
       product_id: selected.id,
       quantity: 1,
+      price_id: selected.stripe_price_id,
     };
     dispatch(addToCart(payload))
       .unwrap()
@@ -189,7 +207,7 @@ export default function MockExams() {
   };
 
   const breadcrumbs = [
-    { label: "Mock Exams", path: "/mock-exams" },
+    { label: "Papers", path: "/papers" },
   ];
 
   const fallbackImage = "https://dummyimage.com/600x400/eeeeee/000000&text=No+Image";
@@ -198,7 +216,7 @@ export default function MockExams() {
 
   return (
     <>
-      <PageHeader title="Mock Exams" subtitle="Practice with realistic mock tests" breadcrumbs={breadcrumbs} />
+      <PageHeader title="Papers" subtitle="Practice with exam papers" breadcrumbs={breadcrumbs} />
       <Box sx={{ py: 8, background: 'linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%)' }}>
         <Container sx={containerStyles}>
           {/* Benefits / Value Props - Moved above filters */}
@@ -756,7 +774,7 @@ export default function MockExams() {
                     padding: '16px',
                   }
                 }}>
-                  <TableCell sx={{ fontWeight: "bold" }}>Mock Exam</TableCell>
+                  <TableCell sx={{ fontWeight: "bold" }}>Paper</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Category</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Format</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Price</TableCell>
@@ -768,12 +786,12 @@ export default function MockExams() {
                   <CommonSkeleton type="table" rows={5} cols={5} />
                 ) : rows.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={5} align="center">No mock exams available.</TableCell>
+                    <TableCell colSpan={5} align="center">No papers available.</TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((exam, idx) => (
+                  rows.map((paper, idx) => (
                     <TableRow 
-                      key={exam.id}
+                      key={paper.id}
                       sx={{
                         '&:hover': {
                           backgroundColor: '#f8f9ff',
@@ -797,39 +815,39 @@ export default function MockExams() {
                             border: '2px solid #e3f2fd',
                           }}>
                             <img
-                              src={exam.image || fallbackImage}
-                              alt={exam.name}
+                              src={paper.image || fallbackImage}
+                              alt={paper.name}
                               style={{ width: '100%', height: '100%', objectFit: "cover" }}
                             />
                           </Box>
                           <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: '#1a1a1a' }}>
-                            {exam.name}
+                            {paper.name}
                           </Typography>
                         </Box>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ color: '#666', fontSize: '0.95rem' }}>
-                          {exam.category || "—"}
+                          {paper.category || "—"}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ color: '#666', fontSize: '0.95rem' }}>
-                          {exam.format || "—"}
+                          {paper.format || "—"}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography sx={{ fontWeight: 600, color: '#1976d2', fontSize: '1rem' }}>
-                          {exam.price || "—"}
+                          {paper.price ? `${paper.currency || '€'}${paper.price}` : "—"}
                         </Typography>
                       </TableCell>
                       <TableCell align="center">
                         <Button
                           variant="contained"
                           onClick={() => {
-                            if (exam.slug) {
-                              navigate(`/add-to-cart/mock-exam/${exam.slug}`);
+                            if (paper.slug) {
+                              navigate(`/add-to-cart/paper/${paper.slug}`);
                             } else {
-                              setSelected(exam);
+                              setSelected(paper);
                               setOpenModal(true);
                             }
                           }}
@@ -877,11 +895,11 @@ export default function MockExams() {
                   style={{ width: "100%", borderRadius: 8, marginBottom: 16 }}
                 />
                 <Typography variant="body2" sx={{ mb: 1 }}>
-                  {selected.description || "Train with realistic exam conditions."}
+                  {selected.description || "Practice with realistic exam papers."}
                 </Typography>
                 {selected.price && (
                   <Typography sx={{ fontWeight: 600, mb: 2 }}>
-                    Price: {selected.price}
+                    Price: {selected.currency || '€'}{selected.price}
                   </Typography>
                 )}
                 <Button
@@ -914,7 +932,7 @@ export default function MockExams() {
                   </Box>
                   {selected.price && (
                     <Typography sx={{ marginLeft: "auto", fontWeight: 500 }}>
-                      {selected.price}
+                      {selected.currency || '€'}{selected.price}
                     </Typography>
                   )}
                 </Box>
@@ -952,7 +970,7 @@ export default function MockExams() {
               How it works
             </Typography>
             <Grid container spacing={3}>
-              {["Choose your mock exam", "Register and receive confirmation", "Take the test under timed conditions", "Get feedback and next steps"].map((step, idx) => (
+              {["Choose your paper", "Register and receive confirmation", "Take the test under timed conditions", "Get feedback and next steps"].map((step, idx) => (
                 <Grid item xs={12} md={3} key={idx}>
                   <Box 
                     sx={{ 
@@ -1013,20 +1031,20 @@ export default function MockExams() {
               Frequently asked questions
             </Typography>
             {[{
-              q: "Are the mocks aligned to real exam boards?",
-              a: "Yes, mocks mirror board styles like CSSE, GL, and more where specified.",
+              q: "Are the papers aligned to real exam boards?",
+              a: "Yes, papers mirror board styles like CSSE, GL, and more where specified.",
             },{
               q: "Do I get detailed feedback?",
               a: "You'll receive a summary of performance and guidance on areas to improve.",
             },{
               q: "What if I need to reschedule?",
-              a: "Contact support before your mock date; we'll try to accommodate changes.",
+              a: "Contact support before your paper date; we'll try to accommodate changes.",
             },{
               q: "Is there online format available?",
               a: "Where format is 'any', both in-person and online options may be provided.",
             },{
               q: "How do I register?",
-              a: "Click Register Now next to the mock and follow the checkout process.",
+              a: "Click Register Now next to the paper and follow the checkout process.",
             }].map((item, i) => (
               <Accordion 
                 key={i} 
@@ -1104,7 +1122,7 @@ export default function MockExams() {
                 Ready to put skills to the test?
               </Typography>
               <Typography sx={{ color: "rgba(255,255,255,0.95)", fontSize: '1.1rem', lineHeight: 1.6 }}>
-                Register for a mock exam today and get exam-ready with confidence.
+                Register for a paper today and get exam-ready with confidence.
               </Typography>
             </Box>
             <Button 
@@ -1139,5 +1157,7 @@ export default function MockExams() {
     </>
   );
 }
+
+
 
 

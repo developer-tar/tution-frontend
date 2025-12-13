@@ -33,13 +33,16 @@ const ADMIN_URL = process.env.REACT_APP_PARENT_URL;
 
 const navItems = [
   { label: "Home", path: "/" },
-  { label: "Courses", items: [{ label: "Course List", path: "/course-list" }] },
-  { label: "About", path: "/about", items: [{ label: "Team", path: "/about/team" }, { label: "Mission", path: "/about/mission" }] },
-  { label: "Advice", path: "/advice", items: [{ label: "Tips", path: "/advice/tips" }, { label: "Guidance", path: "/advice/guidance" }] },
+  // { label: "Courses", items: [{ label: "Course List", path: "/course-list" }] },
+  { label: "Courses", path: "/course-list" },
+  
+  // { label: "Advice", path: "/advice", items: [{ label: "Tips", path: "/advice/tips" }, { label: "Guidance", path: "/advice/guidance" }] },
   { label: "Mock Exams", path: "/mock-exams" },
-  { label: "Creative Writing", path: "/creative-writing" },
+  // { label: "Creative Writing", path: "/creative-writing" },
   { label: "Papers", path: "/papers" },
-  { label: "Contact Us", path: "/contact" },
+  { label: "About", path: "/about"},
+  // { label: "About", path: "/about", items: [{ label: "Team", path: "/about/team" }, { label: "Mission", path: "/about/mission" }] },
+  // { label: "Contact Us", path: "/contact" },
 ];
 
 export default function Navbar() {
@@ -71,10 +74,12 @@ export default function Navbar() {
         userInitials
       });
 
-      // Fetch cart data if user is logged in
-      if (isLoggedIn) {
-        dispatch(fetchCart());
-      }
+      // Always try to fetch cart data (works for both logged in and guest users)
+      dispatch(fetchCart()).catch((err) => {
+        // If fetch fails (e.g., user not logged in), that's okay
+        // Cart will remain empty or use localStorage if available
+        console.log('Cart fetch failed (user may not be logged in):', err);
+      });
     };
 
     // Initial check
@@ -88,11 +93,11 @@ export default function Navbar() {
       }
       // Handle cart updates
       else if (e.key === 'cartUpdated') {
-        const currentlyLoggedIn = isParentLoggedIn();
-        if (currentlyLoggedIn) {
-          dispatch(fetchCart());
-          localStorage.removeItem('cartUpdated'); // Clean up
-        }
+        // Always try to fetch cart when updated, regardless of login status
+        dispatch(fetchCart()).catch((err) => {
+          console.log('Cart fetch failed:', err);
+        });
+        localStorage.removeItem('cartUpdated'); // Clean up
       }
     };
 
@@ -181,7 +186,17 @@ export default function Navbar() {
         component={Link}
         to={item.path || "#"}
         endIcon={item.items ? <ExpandMoreIcon /> : null}
-        sx={{ color: "#000", textTransform: "none", fontSize: { md: "12px", lg: "16px" } }}
+        sx={{ 
+          color: "#000", 
+          textTransform: "none", 
+          fontSize: { md: "12px", lg: "16px" },
+          px: { md: 1, lg: 1.5 },
+          minWidth: 'auto',
+          '&:hover': {
+            backgroundColor: 'transparent',
+            color: '#1976d2'
+          }
+        }}
       >
         {item.label}
       </Button>
@@ -207,23 +222,78 @@ export default function Navbar() {
   return (
     <AppBar position="static" color="transparent" elevation={0} sx={{ py: 2 }}>
       <Container sx={containerStyles}>
-        <Toolbar sx={{ justifyContent: "space-between", px: 0 }}>
-          <Link to="/">
-            <img src="/assets/images/logo.svg" alt="Logo" style={{ height: 40 }} />
-          </Link>
+        <Toolbar 
+          disableGutters
+          sx={{ 
+            display: 'flex',
+            justifyContent: "space-between", 
+            alignItems: 'center',
+            px: 0,
+            minHeight: '64px !important',
+            width: '100%',
+            gap: 4
+          }}
+        >
+          {/* Logo Section */}
+          <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+            <Link to="/" style={{ display: 'flex', alignItems: 'center', textDecoration: 'none' }}>
+              <img src="/assets/images/logo.svg" alt="Logo" style={{ height: 40 }} />
+            </Link>
+          </Box>
 
           {!isMobile ? (
-            <Box sx={{ display: "flex", gap: { md: 1, lg: 2 }, alignItems: "center", flexWrap: "nowrap" }}>
-              {navItems.map((item) => renderMenu(item))}
-
-              <Button
-                variant="outlined"
-                size="small"
-                onClick={handleAdminRedirect}
-                sx={{ ml: 1, textTransform: "none" }}
+            <>
+              {/* Navigation Items */}
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  gap: { xs: 2, md: 3, lg: 4 }, 
+                  alignItems: "center", 
+                  flexWrap: "nowrap",
+                  flex: '1 1 auto',
+                  justifyContent: 'center',
+                  mx: { md: 2, lg: 4 }
+                }}
               >
-                Login
-              </Button>
+                {navItems.map((item) => renderMenu(item))}
+              </Box>
+
+              {/* Right Side Actions */}
+              <Box 
+                sx={{ 
+                  display: "flex", 
+                  gap: 2,
+                  alignItems: "center", 
+                  flexWrap: "nowrap",
+                  flexShrink: 0
+                }}
+              >
+                {/* Cart Icon - Always visible, before Login */}
+                <IconButton component={Link} to="/basket" sx={{ color: "inherit" }}>
+                  <Badge 
+                    badgeContent={cartItems && cartItems.length > 0 ? cartItems.length : null} 
+                    color="error"
+                    sx={{
+                      '& .MuiBadge-badge': {
+                        backgroundColor: '#f44336',
+                        color: 'white',
+                        fontWeight: 'bold',
+                        fontSize: '0.75rem'
+                      }
+                    }}
+                  >
+                    <ShoppingCartIcon />
+                  </Badge>
+                </IconButton>
+
+                <Button
+                  variant="outlined"
+                  size="small"
+                  onClick={handleAdminRedirect}
+                  sx={{ textTransform: "none" }}
+                >
+                  Login
+                </Button>
 
               {/* Parent Portal Indicator */}
               {authState.isLoggedIn && (
@@ -293,26 +363,8 @@ export default function Navbar() {
                   </Menu>
                 </>
               )}
-
-              {authState.isLoggedIn && (
-                <IconButton component={Link} to="/basket" sx={{ color: "inherit", ml: 1 }}>
-                  <Badge 
-                    badgeContent={cartItems.length > 0 ? cartItems.length : null} 
-                    color="error"
-                    sx={{
-                      '& .MuiBadge-badge': {
-                        backgroundColor: '#f44336',
-                        color: 'white',
-                        fontWeight: 'bold',
-                        fontSize: '0.75rem'
-                      }
-                    }}
-                  >
-                    <ShoppingCartIcon />
-                  </Badge>
-                </IconButton>
-              )}
-            </Box>
+              </Box>
+            </>
           ) : (
             <>
               <Button
