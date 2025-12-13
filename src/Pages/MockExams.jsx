@@ -98,34 +98,66 @@ export default function MockExams() {
   const renderCategoryTree = (nodes, level = 0) => {
     if (!nodes || nodes.length === 0) return null;
     return (
-      <Box sx={{ pl: level * 3 }}>
+      <Box sx={{ pl: level * 2.5 }}>
         {nodes.map((node) => {
           const hasChildren = node.all_children && node.all_children.length > 0;
           const isSelected = String(selectedCategory) === String(node.id);
           return (
-            <Box key={node.id} sx={{ mb: 1 }}>
+            <Box key={node.id} sx={{ mb: 1.5 }}>
               <Box
                 onClick={() => handleCategoryClick(node.id)}
                 sx={{
-                  p: 1.5,
+                  p: 1.8,
                   cursor: 'pointer',
-                  borderRadius: 1,
-                  backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
-                  border: isSelected ? '1px solid #2196f3' : '1px solid transparent',
-                  '&:hover': {
-                    backgroundColor: isSelected ? '#e3f2fd' : '#f5f5f5',
-                  },
+                  borderRadius: 2,
+                  backgroundColor: isSelected 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : 'rgba(255, 255, 255, 0.8)',
+                  background: isSelected 
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                    : 'rgba(255, 255, 255, 0.8)',
+                  border: isSelected 
+                    ? '2px solid transparent' 
+                    : '2px solid rgba(102, 126, 234, 0.2)',
+                  color: isSelected ? 'white' : '#1a1a1a',
+                  transition: 'all 0.3s ease',
+                  boxShadow: isSelected 
+                    ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                    : '0 2px 8px rgba(0, 0, 0, 0.05)',
                   display: 'flex',
                   alignItems: 'center',
-                  gap: 1
+                  gap: 1.5,
+                  '&:hover': {
+                    transform: 'translateX(4px)',
+                    boxShadow: isSelected 
+                      ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                      : '0 4px 12px rgba(102, 126, 234, 0.2)',
+                    borderColor: isSelected ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
+                    backgroundColor: isSelected 
+                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                      : 'rgba(102, 126, 234, 0.08)',
+                    background: isSelected 
+                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                      : 'rgba(102, 126, 234, 0.08)',
+                  }
                 }}
               >
-                <Typography sx={{ fontWeight: isSelected ? 600 : 400, flex: 1 }}>
+                <Typography 
+                  sx={{ 
+                    fontWeight: isSelected ? 700 : 500, 
+                    flex: 1,
+                    fontSize: '0.95rem',
+                    transition: 'all 0.3s ease'
+                  }}
+                >
                   {node.name}
                 </Typography>
+                {isSelected && (
+                  <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'white' }} />
+                )}
               </Box>
               {hasChildren && (
-                <Box sx={{ mt: 1 }}>
+                <Box sx={{ mt: 1.5, ml: 1, borderLeft: '2px dashed rgba(102, 126, 234, 0.2)', pl: 2 }}>
                   {renderCategoryTree(node.all_children, level + 1)}
                 </Box>
               )}
@@ -167,26 +199,97 @@ export default function MockExams() {
   return (
     <>
       <PageHeader title="Mock Exams" subtitle="Practice with realistic mock tests" breadcrumbs={breadcrumbs} />
-      <Box sx={{ py: 8 }}>
+      <Box sx={{ py: 8, background: 'linear-gradient(180deg, #f8f9ff 0%, #ffffff 100%)' }}>
         <Container sx={containerStyles}>
+          {/* Benefits / Value Props - Moved above filters */}
+          <Grid container spacing={3} sx={{ mb: 6 }}>
+            {[{
+              icon: <AssessmentIcon sx={{ fontSize: 40, color: "#1976d2" }} />,
+              title: "Realistic Exam Conditions",
+              desc: "Timed sections and authentic question types build confidence for the day.",
+              gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            },{
+              icon: <SchoolIcon sx={{ fontSize: 40, color: "#1976d2" }} />,
+              title: "Targeted Preparation",
+              desc: "Focus on the boards and formats that matter to your child.",
+              gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
+            },{
+              icon: <AccessTimeIcon sx={{ fontSize: 40, color: "#1976d2" }} />,
+              title: "Detailed Feedback",
+              desc: "Understand strengths and next steps with clear, actionable insights.",
+              gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
+            }].map((card, i) => (
+              <Grid item xs={12} md={4} key={i}>
+                <Box 
+                  sx={{ 
+                    p: 4, 
+                    borderRadius: 3, 
+                    background: card.gradient,
+                    color: 'white',
+                    boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
+                    transition: 'transform 0.3s ease, box-shadow 0.3s ease',
+                    '&:hover': {
+                      transform: 'translateY(-8px)',
+                      boxShadow: '0 15px 40px rgba(0,0,0,0.25)',
+                    },
+                    height: '100%',
+                    display: 'flex',
+                    flexDirection: 'column',
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
+                    <Box sx={{ 
+                      p: 1.5, 
+                      borderRadius: 2, 
+                      background: 'rgba(255,255,255,0.2)',
+                      backdropFilter: 'blur(10px)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}>
+                      {card.icon}
+                    </Box>
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.25rem' }}>{card.title}</Typography>
+                  </Box>
+                  <Typography sx={{ color: "rgba(255,255,255,0.95)", fontSize: '0.95rem', lineHeight: 1.6 }}>{card.desc}</Typography>
+                </Box>
+              </Grid>
+            ))}
+          </Grid>
+
           {/* Filters */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
+              <Paper sx={{ 
+                p: 2, 
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid rgba(25, 118, 210, 0.1)',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                zIndex: isCategoryOpen ? 1000 : 1,
+                '&:hover': {
+                  boxShadow: '0 6px 25px rgba(0,0,0,0.12)',
+                }
+              }}>
                 {/* Dropdown Header */}
                 <Box
                   onClick={() => setIsCategoryOpen(!isCategoryOpen)}
                   sx={{
                     p: 1.5,
                     cursor: 'pointer',
-                    borderRadius: 1,
-                    border: '1px solid #d1d5db',
+                    borderRadius: 1.5,
+                    border: '2px solid #e3f2fd',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: '#fff',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
+                    transition: 'all 0.3s ease',
                     '&:hover': {
-                      backgroundColor: '#f5f5f5',
+                      backgroundColor: '#e3f2fd',
+                      borderColor: '#1976d2',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
                     }
                   }}
                 >
@@ -201,20 +304,125 @@ export default function MockExams() {
                   </Typography>
                 </Box>
 
+                {/* Upward Arrow */}
+                {isCategoryOpen && (
+                  <>
+                    {/* Outer arrow (border) */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% - 1px)',
+                        left: '24px',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '12px solid transparent',
+                        borderRight: '12px solid transparent',
+                        borderBottom: '12px solid rgba(102, 126, 234, 0.2)',
+                        zIndex: 1002,
+                        animation: 'fadeInDown 0.3s ease-out',
+                        '@keyframes fadeInDown': {
+                          '0%': {
+                            opacity: 0,
+                            transform: 'translateY(-10px)',
+                          },
+                          '100%': {
+                            opacity: 1,
+                            transform: 'translateY(0)',
+                          },
+                        },
+                      }}
+                    />
+                    {/* Inner arrow (background) */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% + 1px)',
+                        left: '26px',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '10px solid transparent',
+                        borderRight: '10px solid transparent',
+                        borderBottom: '10px solid #ffffff',
+                        zIndex: 1003,
+                        animation: 'fadeInDown 0.3s ease-out',
+                      }}
+                    />
+                  </>
+                )}
                 {/* Dropdown Content */}
                 {isCategoryOpen && (
-                  <Box sx={{ mt: 1, maxHeight: 300, overflow: 'auto', border: '1px solid #d1d5db', borderRadius: 1, p: 1 }}>
+                  <Box 
+                    sx={{ 
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      mt: 1.5,
+                      maxHeight: 400, 
+                      overflow: 'auto', 
+                      border: '2px solid rgba(102, 126, 234, 0.2)',
+                      borderRadius: 2,
+                      p: 2,
+                      background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
+                      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      zIndex: 1001,
+                      width: '100%',
+                      opacity: 0,
+                      transform: 'translateY(-10px)',
+                      animation: 'fadeInSlideDown 0.3s ease-out forwards',
+                      '@keyframes fadeInSlideDown': {
+                        '0%': {
+                          opacity: 0,
+                          transform: 'translateY(-10px)',
+                        },
+                        '100%': {
+                          opacity: 1,
+                          transform: 'translateY(0)',
+                        },
+                      },
+                      '&::-webkit-scrollbar': {
+                        width: '8px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        background: '#f1f1f1',
+                        borderRadius: '10px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: '10px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                        }
+                      }
+                    }}
+                  >
                     {selectedCategory && (
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                         <Button
                           size="small"
                           onClick={(e) => {
                             e.stopPropagation();
                             setSelectedCategory("");
                           }}
-                          sx={{ textTransform: 'none' }}
+                          sx={{ 
+                            textTransform: 'none',
+                            borderRadius: '20px',
+                            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                            color: 'white',
+                            fontWeight: 600,
+                            px: 2,
+                            py: 0.5,
+                            boxShadow: '0 2px 8px rgba(245, 87, 108, 0.3)',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(245, 87, 108, 0.4)',
+                              background: 'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)',
+                            }
+                          }}
                         >
-                          Clear
+                          Clear Filter
                         </Button>
                       </Box>
                     )}
@@ -224,21 +432,36 @@ export default function MockExams() {
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ p: 2 }}>
+              <Paper sx={{ 
+                p: 2, 
+                borderRadius: 2,
+                boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
+                border: '1px solid rgba(25, 118, 210, 0.1)',
+                transition: 'all 0.3s ease',
+                position: 'relative',
+                zIndex: isFormatOpen ? 1000 : 1,
+                '&:hover': {
+                  boxShadow: '0 6px 25px rgba(0,0,0,0.12)',
+                }
+              }}>
                 {/* Dropdown Header */}
                 <Box
                   onClick={() => setIsFormatOpen(!isFormatOpen)}
                   sx={{
                     p: 1.5,
                     cursor: 'pointer',
-                    borderRadius: 1,
-                    border: '1px solid #d1d5db',
+                    borderRadius: 1.5,
+                    border: '2px solid #e3f2fd',
                     display: 'flex',
                     justifyContent: 'space-between',
                     alignItems: 'center',
-                    backgroundColor: '#fff',
+                    background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
+                    transition: 'all 0.3s ease',
                     '&:hover': {
-                      backgroundColor: '#f5f5f5',
+                      backgroundColor: '#e3f2fd',
+                      borderColor: '#1976d2',
+                      transform: 'translateY(-2px)',
+                      boxShadow: '0 4px 12px rgba(25, 118, 210, 0.2)',
                     }
                   }}
                 >
@@ -256,11 +479,101 @@ export default function MockExams() {
                   </Typography>
                 </Box>
 
+                {/* Upward Arrow */}
+                {isFormatOpen && (
+                  <>
+                    {/* Outer arrow (border) */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% - 1px)',
+                        left: '24px',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '12px solid transparent',
+                        borderRight: '12px solid transparent',
+                        borderBottom: '12px solid rgba(102, 126, 234, 0.2)',
+                        zIndex: 1002,
+                        animation: 'fadeInDown 0.3s ease-out',
+                        '@keyframes fadeInDown': {
+                          '0%': {
+                            opacity: 0,
+                            transform: 'translateY(-10px)',
+                          },
+                          '100%': {
+                            opacity: 1,
+                            transform: 'translateY(0)',
+                          },
+                        },
+                      }}
+                    />
+                    {/* Inner arrow (background) */}
+                    <Box
+                      sx={{
+                        position: 'absolute',
+                        top: 'calc(100% + 1px)',
+                        left: '26px',
+                        width: 0,
+                        height: 0,
+                        borderLeft: '10px solid transparent',
+                        borderRight: '10px solid transparent',
+                        borderBottom: '10px solid #ffffff',
+                        zIndex: 1003,
+                        animation: 'fadeInDown 0.3s ease-out',
+                      }}
+                    />
+                  </>
+                )}
                 {/* Dropdown Content */}
                 {isFormatOpen && (
-                  <Box sx={{ mt: 1, maxHeight: 300, overflow: 'auto', border: '1px solid #d1d5db', borderRadius: 1, p: 1 }}>
+                  <Box 
+                    sx={{ 
+                      position: 'absolute',
+                      top: '100%',
+                      left: 0,
+                      right: 0,
+                      mt: 1.5,
+                      maxHeight: 400, 
+                      overflow: 'auto', 
+                      border: '2px solid rgba(102, 126, 234, 0.2)',
+                      borderRadius: 2,
+                      p: 2,
+                      background: 'linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)',
+                      boxShadow: '0 8px 32px rgba(102, 126, 234, 0.15)',
+                      backdropFilter: 'blur(10px)',
+                      zIndex: 1001,
+                      width: '100%',
+                      opacity: 0,
+                      transform: 'translateY(-10px)',
+                      animation: 'fadeInSlideDown 0.3s ease-out forwards',
+                      '@keyframes fadeInSlideDown': {
+                        '0%': {
+                          opacity: 0,
+                          transform: 'translateY(-10px)',
+                        },
+                        '100%': {
+                          opacity: 1,
+                          transform: 'translateY(0)',
+                        },
+                      },
+                      '&::-webkit-scrollbar': {
+                        width: '8px',
+                      },
+                      '&::-webkit-scrollbar-track': {
+                        background: '#f1f1f1',
+                        borderRadius: '10px',
+                      },
+                      '&::-webkit-scrollbar-thumb': {
+                        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                        borderRadius: '10px',
+                        '&:hover': {
+                          background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                        }
+                      }
+                    }}
+                  >
                     {selectedFormat && (
-                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 1 }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: 2 }}>
                         <Button
                           size="small"
                           onClick={(e) => {
@@ -268,9 +581,24 @@ export default function MockExams() {
                             setSelectedFormat("");
                             setIsFormatOpen(false);
                           }}
-                          sx={{ textTransform: 'none' }}
+                          sx={{ 
+                            textTransform: 'none',
+                            borderRadius: '20px',
+                            background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
+                            color: 'white',
+                            fontWeight: 600,
+                            px: 2,
+                            py: 0.5,
+                            boxShadow: '0 2px 8px rgba(245, 87, 108, 0.3)',
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 4px 12px rgba(245, 87, 108, 0.4)',
+                              background: 'linear-gradient(135deg, #f5576c 0%, #f093fb 100%)',
+                            }
+                          }}
                         >
-                          Clear
+                          Clear Filter
                         </Button>
                       </Box>
                     )}
@@ -278,20 +606,48 @@ export default function MockExams() {
                     <Box
                       onClick={() => handleFormatClick("")}
                       sx={{
-                        p: 1.5,
+                        p: 1.8,
                         cursor: 'pointer',
-                        borderRadius: 1,
-                        backgroundColor: selectedFormat === "" ? '#e3f2fd' : 'transparent',
-                        border: selectedFormat === "" ? '1px solid #2196f3' : '1px solid transparent',
+                        borderRadius: 2,
+                        backgroundColor: selectedFormat === "" 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                          : 'rgba(255, 255, 255, 0.8)',
+                        background: selectedFormat === "" 
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                          : 'rgba(255, 255, 255, 0.8)',
+                        border: selectedFormat === "" 
+                          ? '2px solid transparent' 
+                          : '2px solid rgba(102, 126, 234, 0.2)',
+                        color: selectedFormat === "" ? 'white' : '#1a1a1a',
+                        transition: 'all 0.3s ease',
+                        boxShadow: selectedFormat === "" 
+                          ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                          : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                        mb: 1.5,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 1.5,
                         '&:hover': {
-                          backgroundColor: selectedFormat === "" ? '#e3f2fd' : '#f5f5f5',
-                        },
-                        mb: 1
+                          transform: 'translateX(4px)',
+                          boxShadow: selectedFormat === "" 
+                            ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                            : '0 4px 12px rgba(102, 126, 234, 0.2)',
+                          borderColor: selectedFormat === "" ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
+                          backgroundColor: selectedFormat === "" 
+                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                            : 'rgba(102, 126, 234, 0.08)',
+                          background: selectedFormat === "" 
+                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                            : 'rgba(102, 126, 234, 0.08)',
+                        }
                       }}
                     >
-                      <Typography sx={{ fontWeight: selectedFormat === "" ? 600 : 400 }}>
+                      <Typography sx={{ fontWeight: selectedFormat === "" ? 700 : 500, fontSize: '0.95rem' }}>
                         All Formats
                       </Typography>
+                      {selectedFormat === "" && (
+                        <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'white' }} />
+                      )}
                     </Box>
                     {/* Format list */}
                     {formats.map((f, idx) => {
@@ -303,20 +659,48 @@ export default function MockExams() {
                           key={idx}
                           onClick={() => handleFormatClick(formatValue)}
                           sx={{
-                            p: 1.5,
+                            p: 1.8,
                             cursor: 'pointer',
-                            borderRadius: 1,
-                            backgroundColor: isSelected ? '#e3f2fd' : 'transparent',
-                            border: isSelected ? '1px solid #2196f3' : '1px solid transparent',
+                            borderRadius: 2,
+                            backgroundColor: isSelected 
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                              : 'rgba(255, 255, 255, 0.8)',
+                            background: isSelected 
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                              : 'rgba(255, 255, 255, 0.8)',
+                            border: isSelected 
+                              ? '2px solid transparent' 
+                              : '2px solid rgba(102, 126, 234, 0.2)',
+                            color: isSelected ? 'white' : '#1a1a1a',
+                            transition: 'all 0.3s ease',
+                            boxShadow: isSelected 
+                              ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                              : '0 2px 8px rgba(0, 0, 0, 0.05)',
+                            mb: 1.5,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1.5,
                             '&:hover': {
-                              backgroundColor: isSelected ? '#e3f2fd' : '#f5f5f5',
-                            },
-                            mb: 1
+                              transform: 'translateX(4px)',
+                              boxShadow: isSelected 
+                                ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                                : '0 4px 12px rgba(102, 126, 234, 0.2)',
+                              borderColor: isSelected ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
+                              backgroundColor: isSelected 
+                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                                : 'rgba(102, 126, 234, 0.08)',
+                              background: isSelected 
+                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                                : 'rgba(102, 126, 234, 0.08)',
+                            }
                           }}
                         >
-                          <Typography sx={{ fontWeight: isSelected ? 600 : 400 }}>
+                          <Typography sx={{ fontWeight: isSelected ? 700 : 500, fontSize: '0.95rem' }}>
                             {formatLabel}
                           </Typography>
+                          {isSelected && (
+                            <CheckCircleIcon sx={{ fontSize: '1.2rem', color: 'white' }} />
+                          )}
                         </Box>
                       );
                     })}
@@ -325,8 +709,8 @@ export default function MockExams() {
               </Paper>
             </Grid>
           </Grid>
-          {/* Benefits / Value Props */}
-          <Grid container spacing={3} sx={{ mb: 6 }}>
+          {/* Benefits / Value Props - COMMENTED OUT (moved above filters) */}
+          {/* <Grid container spacing={3} sx={{ mb: 6 }}>
             {[{
               icon: <AssessmentIcon sx={{ color: "#0d47a1" }} />,
               title: "Realistic Exam Conditions",
@@ -350,12 +734,28 @@ export default function MockExams() {
                 </Box>
               </Grid>
             ))}
-          </Grid>
+          </Grid> */}
 
-          <TableContainer component={Paper} sx={{ boxShadow: "none" }}>
+          <TableContainer 
+            component={Paper} 
+            sx={{ 
+              boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+              borderRadius: 3,
+              overflow: 'hidden',
+              border: '1px solid rgba(25, 118, 210, 0.1)',
+            }}
+          >
             <Table>
               <TableHead>
-                <TableRow sx={{ backgroundColor: "#F9F9FF" }}>
+                <TableRow sx={{ 
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  '& .MuiTableCell-head': {
+                    color: 'white',
+                    fontWeight: 700,
+                    fontSize: '1rem',
+                    padding: '16px',
+                  }
+                }}>
                   <TableCell sx={{ fontWeight: "bold" }}>Mock Exam</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Category</TableCell>
                   <TableCell sx={{ fontWeight: "bold" }}>Format</TableCell>
@@ -371,23 +771,57 @@ export default function MockExams() {
                     <TableCell colSpan={5} align="center">No mock exams available.</TableCell>
                   </TableRow>
                 ) : (
-                  rows.map((exam) => (
-                    <TableRow key={exam.id}>
+                  rows.map((exam, idx) => (
+                    <TableRow 
+                      key={exam.id}
+                      sx={{
+                        '&:hover': {
+                          backgroundColor: '#f8f9ff',
+                          transform: 'scale(1.01)',
+                          transition: 'all 0.2s ease',
+                        },
+                        transition: 'all 0.2s ease',
+                        '& .MuiTableCell-root': {
+                          padding: '16px',
+                        }
+                      }}
+                    >
                       <TableCell>
                         <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-                          <img
-                            src={exam.image || fallbackImage}
-                            alt={exam.name}
-                            style={{ width: 40, height: 40, objectFit: "cover", borderRadius: 4 }}
-                          />
-                          <Typography sx={{ fontWeight: 500 }}>
+                          <Box sx={{
+                            width: 50,
+                            height: 50,
+                            borderRadius: 2,
+                            overflow: 'hidden',
+                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
+                            border: '2px solid #e3f2fd',
+                          }}>
+                            <img
+                              src={exam.image || fallbackImage}
+                              alt={exam.name}
+                              style={{ width: '100%', height: '100%', objectFit: "cover" }}
+                            />
+                          </Box>
+                          <Typography sx={{ fontWeight: 600, fontSize: '1rem', color: '#1a1a1a' }}>
                             {exam.name}
                           </Typography>
                         </Box>
                       </TableCell>
-                      <TableCell>{exam.category || "—"}</TableCell>
-                      <TableCell>{exam.format || "—"}</TableCell>
-                      <TableCell>{exam.price || "—"}</TableCell>
+                      <TableCell>
+                        <Typography sx={{ color: '#666', fontSize: '0.95rem' }}>
+                          {exam.category || "—"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ color: '#666', fontSize: '0.95rem' }}>
+                          {exam.format || "—"}
+                        </Typography>
+                      </TableCell>
+                      <TableCell>
+                        <Typography sx={{ fontWeight: 600, color: '#1976d2', fontSize: '1rem' }}>
+                          {exam.price || "—"}
+                        </Typography>
+                      </TableCell>
                       <TableCell align="center">
                         <Button
                           variant="contained"
@@ -399,7 +833,20 @@ export default function MockExams() {
                               setOpenModal(true);
                             }
                           }}
-                          sx={{ textTransform: "none", borderRadius: "20px" }}
+                          sx={{ 
+                            textTransform: "none", 
+                            borderRadius: "25px",
+                            background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                            boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                            padding: '8px 24px',
+                            fontWeight: 600,
+                            transition: 'all 0.3s ease',
+                            '&:hover': {
+                              transform: 'translateY(-2px)',
+                              boxShadow: '0 6px 20px rgba(102, 126, 234, 0.5)',
+                              background: 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)',
+                            }
+                          }}
                         >
                           Register Now
                         </Button>
@@ -489,16 +936,60 @@ export default function MockExams() {
           </CommonModal>
 
           {/* How it works */}
-          <Box sx={{ mt: 8 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, textAlign: "center" }}>
+          <Box sx={{ mt: 8, mb: 6 }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                fontWeight: 800, 
+                mb: 4, 
+                textAlign: "center",
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
               How it works
             </Typography>
             <Grid container spacing={3}>
               {["Choose your mock exam", "Register and receive confirmation", "Take the test under timed conditions", "Get feedback and next steps"].map((step, idx) => (
                 <Grid item xs={12} md={3} key={idx}>
-                  <Box sx={{ p: 3, textAlign: "center", borderRadius: 2, background: "#fff", boxShadow: "0px 4px 10px rgba(0,0,0,0.05)" }}>
-                    <Box sx={{ display: "inline-flex", alignItems: "center", justifyContent: "center", width: 36, height: 36, borderRadius: "50%", background: "#e0e7ff", color: "#0d47a1", fontWeight: 700, mb: 1 }}>{idx + 1}</Box>
-                    <Typography sx={{ fontWeight: 600 }}>{step}</Typography>
+                  <Box 
+                    sx={{ 
+                      p: 4, 
+                      textAlign: "center", 
+                      borderRadius: 3, 
+                      background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+                      boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
+                      border: '2px solid rgba(102, 126, 234, 0.1)',
+                      transition: 'all 0.3s ease',
+                      height: '100%',
+                      '&:hover': {
+                        transform: 'translateY(-8px)',
+                        boxShadow: "0 12px 32px rgba(102, 126, 234, 0.2)",
+                        borderColor: 'rgba(102, 126, 234, 0.3)',
+                      }
+                    }}
+                  >
+                    <Box 
+                      sx={{ 
+                        display: "inline-flex", 
+                        alignItems: "center", 
+                        justifyContent: "center", 
+                        width: 56, 
+                        height: 56, 
+                        borderRadius: "50%", 
+                        background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                        color: "white", 
+                        fontWeight: 800, 
+                        fontSize: '1.5rem',
+                        mb: 2,
+                        boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
+                      }}
+                    >
+                      {idx + 1}
+                    </Box>
+                    <Typography sx={{ fontWeight: 600, fontSize: '1.1rem', color: '#1a1a1a' }}>{step}</Typography>
                   </Box>
                 </Grid>
               ))}
@@ -506,8 +997,19 @@ export default function MockExams() {
           </Box>
 
           {/* FAQ */}
-          <Box sx={{ mt: 8 }}>
-            <Typography variant="h5" sx={{ fontWeight: 700, mb: 2, textAlign: "center" }}>
+          <Box sx={{ mt: 8, mb: 6 }}>
+            <Typography 
+              variant="h4" 
+              sx={{ 
+                fontWeight: 800, 
+                mb: 4, 
+                textAlign: "center",
+                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+              }}
+            >
               Frequently asked questions
             </Typography>
             {[{
@@ -515,10 +1017,10 @@ export default function MockExams() {
               a: "Yes, mocks mirror board styles like CSSE, GL, and more where specified.",
             },{
               q: "Do I get detailed feedback?",
-              a: "You’ll receive a summary of performance and guidance on areas to improve.",
+              a: "You'll receive a summary of performance and guidance on areas to improve.",
             },{
               q: "What if I need to reschedule?",
-              a: "Contact support before your mock date; we’ll try to accommodate changes.",
+              a: "Contact support before your mock date; we'll try to accommodate changes.",
             },{
               q: "Is there online format available?",
               a: "Where format is 'any', both in-person and online options may be provided.",
@@ -526,29 +1028,109 @@ export default function MockExams() {
               q: "How do I register?",
               a: "Click Register Now next to the mock and follow the checkout process.",
             }].map((item, i) => (
-              <Accordion key={i} sx={{ background: "#F9F9FF", mb: 1 }}>
-                <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                    <CheckCircleIcon color="success" />
-                    <Typography sx={{ fontWeight: 600 }}>{item.q}</Typography>
+              <Accordion 
+                key={i} 
+                sx={{ 
+                  background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
+                  mb: 2,
+                  borderRadius: 2,
+                  boxShadow: '0 4px 12px rgba(0,0,0,0.08)',
+                  border: '1px solid rgba(102, 126, 234, 0.1)',
+                  '&:before': {
+                    display: 'none',
+                  },
+                  '&.Mui-expanded': {
+                    margin: '16px 0',
+                    boxShadow: '0 8px 24px rgba(102, 126, 234, 0.15)',
+                  }
+                }}
+              >
+                <AccordionSummary 
+                  expandIcon={<ExpandMoreIcon sx={{ color: '#667eea', fontSize: '2rem' }} />}
+                  sx={{
+                    '&:hover': {
+                      backgroundColor: 'rgba(102, 126, 234, 0.05)',
+                    }
+                  }}
+                >
+                  <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+                    <CheckCircleIcon sx={{ color: "#4caf50", fontSize: '1.5rem' }} />
+                    <Typography sx={{ fontWeight: 700, fontSize: '1.1rem', color: '#1a1a1a' }}>{item.q}</Typography>
                   </Box>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Typography sx={{ color: "#555" }}>{item.a}</Typography>
+                  <Typography sx={{ color: "#666", fontSize: '1rem', lineHeight: 1.7, pl: 5 }}>{item.a}</Typography>
                 </AccordionDetails>
               </Accordion>
             ))}
           </Box>
 
           {/* Final CTA */}
-          <Box sx={{ mt: 8, p: 4, borderRadius: 2, background: "linear-gradient(90deg, #eef2ff, #f5f3ff)", display: "flex", alignItems: "center", gap: 2, flexWrap: "wrap" }}>
-            <Box sx={{ flex: 1, minWidth: 240 }}>
-              <Typography variant="h6" sx={{ fontWeight: 700, mb: 0.5 }}>Ready to put skills to the test?</Typography>
-              <Typography sx={{ color: "#555" }}>Register for a mock exam today and get exam-ready with confidence.</Typography>
+          <Box 
+            sx={{ 
+              mt: 8, 
+              p: 6, 
+              borderRadius: 4, 
+              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+              display: "flex", 
+              alignItems: "center", 
+              gap: 3, 
+              flexWrap: "wrap",
+              boxShadow: '0 12px 40px rgba(102, 126, 234, 0.3)',
+              position: 'relative',
+              overflow: 'hidden',
+              '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'radial-gradient(circle at 30% 50%, rgba(255,255,255,0.1) 0%, transparent 50%)',
+                pointerEvents: 'none',
+              }
+            }}
+          >
+            <Box sx={{ flex: 1, minWidth: 240, position: 'relative', zIndex: 1 }}>
+              <Typography 
+                variant="h4" 
+                sx={{ 
+                  fontWeight: 800, 
+                  mb: 1,
+                  color: 'white',
+                  fontSize: { xs: '1.5rem', md: '2rem' }
+                }}
+              >
+                Ready to put skills to the test?
+              </Typography>
+              <Typography sx={{ color: "rgba(255,255,255,0.95)", fontSize: '1.1rem', lineHeight: 1.6 }}>
+                Register for a mock exam today and get exam-ready with confidence.
+              </Typography>
             </Box>
-            <Button variant="contained" onClick={() => {
-              if (rows && rows[0]) { setSelected(rows[0]); setOpenModal(true); }
-            }} sx={{ textTransform: "none", borderRadius: "24px" }}>
+            <Button 
+              variant="contained" 
+              onClick={() => {
+                if (rows && rows[0]) { setSelected(rows[0]); setOpenModal(true); }
+              }} 
+              sx={{ 
+                textTransform: "none", 
+                borderRadius: "30px",
+                padding: '14px 32px',
+                fontSize: '1.1rem',
+                fontWeight: 700,
+                background: 'white',
+                color: '#667eea',
+                boxShadow: '0 4px 20px rgba(0,0,0,0.2)',
+                position: 'relative',
+                zIndex: 1,
+                transition: 'all 0.3s ease',
+                '&:hover': {
+                  background: 'rgba(255,255,255,0.95)',
+                  transform: 'translateY(-3px)',
+                  boxShadow: '0 6px 25px rgba(0,0,0,0.3)',
+                }
+              }}
+            >
               Register Now
             </Button>
           </Box>
