@@ -31,7 +31,7 @@ const Course = () => {
       
       try {
         const res = await api.get(`${slug}`); 
-        console.log(res.data);
+        console.log('resdta',res.data);
         if (res.data.success && res.data.data.length > 0) {
           setCourseData(res.data.data[0]);
         } else {

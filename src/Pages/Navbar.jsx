@@ -28,6 +28,7 @@ import { Link } from "react-router-dom";
 import { containerStyles } from "./style";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchCart } from "../redux/slices/cartSlice";
+import ListItemButton from "@mui/material/ListItemButton";
 
 const ADMIN_URL = process.env.REACT_APP_PARENT_URL;
 
@@ -179,8 +180,8 @@ export default function Navbar() {
     window.dispatchEvent(new Event('storage'));
   };
 
-  const renderMenu = (item) => (
-    <>
+  const renderMenu = (item, index) => (
+    <React.Fragment key={`${item.label}-${index}`}>
       <Button
         onClick={(e) => handleMenuOpen(e, item.label)}
         component={Link}
@@ -206,21 +207,30 @@ export default function Navbar() {
           anchorEl={anchorEls[item.label]}
           open={Boolean(anchorEls[item.label])}
           onClose={() => handleMenuClose(item.label)}
+          PaperProps={{
+            sx: {
+              zIndex: 2000,
+              mt: 1
+            }
+          }}
+          sx={{
+            zIndex: 2000 // **💥 THE FIX**
+          }}
         >
-          {item.items.map((subItem) => (
-            <MenuItem key={subItem.label} onClick={() => handleMenuClose(item.label)}>
-              <Link to={subItem.path} style={{ textDecoration: "none", color: "#000" }}>
-                {subItem.label}
+          {item.items.map((subItem, subIndex) => (
+          <MenuItem key={`${subItem.label}-${subIndex}`} onClick={() => handleMenuClose(item.label)}>
+            <Link to={subItem.path} style={{ textDecoration: "none", color: "#000" }}>
+              {subItem.label}
               </Link>
             </MenuItem>
           ))}
         </Menu>
       )}
-    </>
+    </React.Fragment>
   );
 
   return (
-    <AppBar position="static" color="transparent" elevation={0} sx={{ py: 2 }}>
+    <AppBar position="static" color="transparent" elevation={0} sx={{ py: 2, zIndex: 3000 }}>
       <Container sx={containerStyles}>
         <Toolbar 
           disableGutters
@@ -323,6 +333,7 @@ export default function Navbar() {
                       transition: 'all 0.2s ease-in-out'
                     }}
                   />
+
                   <Menu
                     anchorEl={parentMenuAnchor}
                     open={Boolean(parentMenuAnchor)}
@@ -335,15 +346,16 @@ export default function Navbar() {
                       vertical: 'top',
                       horizontal: 'right',
                     }}
-                    sx={{
-                      mt: 0.5,
-                      '& .MuiPaper-root': {
+                    PaperProps={{
+                      sx: {
+                        zIndex: 2000,
                         minWidth: 120,
                         boxShadow: '0px 4px 12px rgba(0, 0, 0, 0.15)',
                         borderRadius: '8px',
-                        marginTop: '4px',
+                        mt: 1
                       }
                     }}
+                    sx={{ zIndex: 2000 }}
                     disableScrollLock={true}
                     keepMounted={false}
                   >
@@ -375,8 +387,20 @@ export default function Navbar() {
               >
                 Login
               </Button>
-              <IconButton onClick={() => setDrawerOpen(true)}><MenuIcon /></IconButton>
-              <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
+              <IconButton onClick={() => setDrawerOpen(!drawerOpen)}> {/* open and close drawer */}
+                <MenuIcon />
+              </IconButton>
+              <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}
+                PaperProps={{
+                  sx: {
+                    top: { xs: "72px", sm: "82px" },  // *** FIX: push drawer under header ***
+                    height: {
+                      xs: "calc(100% - 64px)",
+                      sm: "calc(100% - 72px)"
+                    },
+                    zIndex: 1300
+                  }
+                }}>
                 <Box sx={{ width: 250 }}>
                   <List>
                     {/* Parent Portal Indicator for Mobile */}
@@ -399,47 +423,55 @@ export default function Navbar() {
                             Welcome, {authState.userName}
                           </Typography>
                         </ListItem>
-                        <ListItem button onClick={handleLogout}>
-                          <LogoutIcon sx={{ mr: 1 }} />
-                          <ListItemText primary="Logout" />
+                        <ListItem disablePadding>
+                          <ListItemButton  onClick={handleLogout}>
+                            <LogoutIcon sx={{ mr: 1 }} />
+                            <ListItemText primary="Logout" />
+                          </ListItemButton>
                         </ListItem>
                       </>
                     )}
 
                     {navItems.map((item) => (
                       <React.Fragment key={item.label}>
-                        <ListItem button onClick={() => setDrawerOpen(false)}>
-                          <Link to={item.path || "#"} style={{ textDecoration: "none", color: "#000" }}>
-                            {item.label}
-                          </Link>
+                        <ListItem disablePadding>
+                          <ListItemButton onClick={() => setDrawerOpen(false)}>
+                            <Link to={item.path || "#"} style={{ textDecoration: "none", color: "#000" }}>
+                              {item.label}
+                            </Link>
+                          </ListItemButton>
                         </ListItem>
                         {item.items &&
                           item.items.map((subItem) => (
-                            <ListItem button key={subItem.label} onClick={() => setDrawerOpen(false)} sx={{ pl: 4 }}>
-                              <Link to={subItem.path} style={{ textDecoration: "none", color: "#000" }}>
-                                {subItem.label}
-                              </Link>
+                            <ListItem disablePadding key={subItem.label}>
+                              <ListItemButton onClick={() => setDrawerOpen(false)} sx={{ pl: 4 }}>
+                                <Link to={subItem.path} style={{ textDecoration: "none", color: "#000" }}>
+                                  {subItem.label}
+                                </Link>
+                              </ListItemButton>
                             </ListItem>
                           ))}
                       </React.Fragment>
                     ))}
                     {authState.isLoggedIn && (
-                      <ListItem button component={Link} to="/basket">
-                        <Badge 
-                          badgeContent={cartItems.length > 0 ? cartItems.length : null} 
-                          color="error"
-                          sx={{
-                            '& .MuiBadge-badge': {
-                              backgroundColor: '#f44336',
-                              color: 'white',
-                              fontWeight: 'bold',
-                              fontSize: '0.75rem'
-                            }
-                          }}
-                        >
-                          <ShoppingCartIcon />
-                        </Badge>
-                        <ListItemText primary="Cart" sx={{ ml: 1 }} />
+                      <ListItem disablePadding>
+                        <ListItemButton component={Link} to="/basket">
+                          <Badge 
+                            badgeContent={cartItems.length > 0 ? cartItems.length : null} 
+                            color="error"
+                            sx={{
+                              '& .MuiBadge-badge': {
+                                backgroundColor: '#f44336',
+                                color: 'white',
+                                fontWeight: 'bold',
+                                fontSize: '0.75rem'
+                              }
+                            }}
+                          >
+                            <ShoppingCartIcon />
+                          </Badge>
+                          <ListItemText primary="Cart" sx={{ ml: 1 }} />
+                        </ListItemButton>
                       </ListItem>
                     )}
                   </List>

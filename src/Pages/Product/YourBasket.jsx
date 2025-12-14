@@ -20,8 +20,8 @@ import { Link } from "react-router-dom";
 import api from "../../api";
 
 // Lazy load the modals to avoid initialization issues
-const ParentRegistrationModal = React.lazy(() => import("../../Components/ParentRegistrationModal"));
-const ParentLoginModal = React.lazy(() => import("../../Components/ParentLoginModal"));
+const ParentRegistrationModal = React.lazy(() => import("../../components/ParentRegistrationModal"));
+const ParentLoginModal = React.lazy(() => import("../../components/ParentLoginModal"));
 
 // Fixed: Removed Snackbar/Alert imports to resolve ESLint errors
 export default function YourBasket() {
