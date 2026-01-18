@@ -9,12 +9,13 @@ import {
     Container,
     LinearProgress,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { containerStyles, h2, spainColor } from '../style';
 
 export default function PricingPlansSection({ data, filters }) {
+    const navigate = useNavigate();
 
     const handlePlanClick = (plan) => {
-        
         // Get price_id from price_according_to_mode based on selected plan
         let priceId = null;
         if (data.price_according_to_mode && 
@@ -22,9 +23,8 @@ export default function PricingPlansSection({ data, filters }) {
             data.price_according_to_mode[plan.mode][plan.duration]) {
             priceId = data.price_according_to_mode[plan.mode][plan.duration].price_id;
         }
-        
-        
-        // Store plan data in localStorage for add-to-cart page
+
+        // Store plan data in localStorage for signup page
         const cartData = {
             courseData: data,
             selectedPlan: plan,
@@ -36,48 +36,27 @@ export default function PricingPlansSection({ data, filters }) {
             selectedPriceId: priceId,
             timestamp: Date.now()
         };
-        
+
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
-        
-        // Navigate to add-to-cart page
-        window.location.href = '/add-to-cart';
+
+        // Navigate to signup page
+        navigate('/signup');
     };
 
     if (!data || !data.price_according_to_mode) {
+        console.warn('PricingPlansSection: Missing data or price_according_to_mode', {
+            hasData: !!data,
+            hasPricing: !!(data && data.price_according_to_mode),
+            dataKeys: data ? Object.keys(data) : []
+        });
         return (
             <Box component="section" sx={{ bgcolor: '#f8f9fa', py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
-                    {/* Loading Progress Bar for missing data */}
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#e3f2fd',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundColor: '#1976d2'
-                            }
-                        }} 
-                    />
-                    {/* Commented out gradient version */}
-                    {/* 
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#f0f0f0',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-                            }
-                        }} 
-                    />
-                    */}
                     <Box textAlign="center">
-                        <Typography variant="h6">Loading pricing plans...</Typography>
+                        <Typography variant="h6">Pricing information unavailable</Typography>
                         <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            Please wait while we fetch the pricing information
+                            Pricing plans for this course are not available at the moment. Please contact us for more information.
                         </Typography>
-                        {/* Commented out original no data message */}
-                        {/* <Typography variant="h6">No Data Found</Typography> */}
                     </Box>
                 </Container>
             </Box>
@@ -88,15 +67,31 @@ export default function PricingPlansSection({ data, filters }) {
     const getAllPricingPlans = () => {
         const allPlans = [];
         
+        // Check if price_according_to_mode exists and has data
+        if (!data.price_according_to_mode || typeof data.price_according_to_mode !== 'object') {
+            console.warn('price_according_to_mode is missing or invalid:', data.price_according_to_mode);
+            return allPlans;
+        }
+        
         Object.entries(data.price_according_to_mode).forEach(([mode, pricing]) => {
+            // Skip if pricing is not an object
+            if (!pricing || typeof pricing !== 'object') {
+                return;
+            }
+            
             // Apply filters if provided
-            if (filters && filters.format !== 'All Formats' && filters.format !== mode) {
+            if (filters && filters.format && filters.format !== 'All Formats' && filters.format !== mode) {
                 return;
             }
             
             Object.entries(pricing).forEach(([duration, details]) => {
+                // Skip if details is not an object or missing price
+                if (!details || typeof details !== 'object' || !details.price) {
+                    return;
+                }
+                
                 // Apply installment filter if provided
-                if (filters && filters.installment !== 'All Installment' && filters.installment !== duration) {
+                if (filters && filters.installment && filters.installment !== 'All Installment' && filters.installment !== duration) {
                     return;
                 }
                 
@@ -118,40 +113,21 @@ export default function PricingPlansSection({ data, filters }) {
     const pricingPlans = getAllPricingPlans();
 
     if (pricingPlans.length === 0) {
+        // Check if filters are applied
+        const hasActiveFilters = filters && (filters.format !== 'All Formats' || filters.installment !== 'All Installment');
+        
         return (
             <Box component="section" sx={{ bgcolor: '#f8f9fa', py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
-                    {/* Loading Progress Bar for filtered results */}
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#e3f2fd',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundColor: '#1976d2'
-                            }
-                        }} 
-                    />
-                    {/* Commented out gradient version */}
-                    {/* 
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#f0f0f0',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-                            }
-                        }} 
-                    />
-                    */}
                     <Box textAlign="center">
-                        <Typography variant="h6">Loading filtered plans...</Typography>
-                        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            Applying your selected filters
+                        <Typography variant="h6" sx={{ mb: 1 }}>
+                            {hasActiveFilters ? 'No plans match your filters' : 'No pricing plans available'}
                         </Typography>
-                        {/* Commented out original no data message */}
-                        {/* <Typography variant="h6">No Data Found</Typography> */}
+                        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                            {hasActiveFilters 
+                                ? 'Try adjusting your filter selections to see more options.' 
+                                : 'Pricing information for this course is currently unavailable. Please contact us for more details.'}
+                        </Typography>
                     </Box>
                 </Container>
             </Box>

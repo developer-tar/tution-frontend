@@ -20,41 +20,15 @@ export default function CourseFeaturesSection({ data }) {
         return (
             <Box component="section" sx={{ bgcolor: '#f8f9fa', py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
-                    {/* Loading Progress Bar */}
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#e3f2fd',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundColor: '#1976d2'
-                            }
-                        }} 
-                    />
-                    {/* Commented out gradient version */}
-                    {/* 
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#f0f0f0',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-                            }
-                        }} 
-                    />
-                    */}
                     <Box textAlign="center">
-                        <Typography variant="h6">Loading course features...</Typography>
+                        <Typography variant="h6">Course features unavailable</Typography>
                         <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            Please wait while we fetch the feature details
+                            Course feature details are not available at the moment. Please try again later.
                         </Typography>
                     </Box>
                 </Container>
             </Box>
         );
-        // Commented out original return
-        // return null;
     }
 
     const onlineFeatures = data.online_mode_features || [];

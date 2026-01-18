@@ -9,12 +9,14 @@ import {
     Container,
     LinearProgress,
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { containerStyles, h2, spainColor } from '../style';
 
 export default function Year3FormatsSection({ data }) {
+    const navigate = useNavigate();
 
     const handleRegisterClick = (format) => {
-        // Store course data in localStorage for add-to-cart page
+        // Store course data in localStorage for signup page
         const cartData = {
             courseData: data,
             courseName: data.name,
@@ -28,49 +30,42 @@ export default function Year3FormatsSection({ data }) {
 
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
 
-        // Navigate to add-to-cart page
-        window.location.href = '/add-to-cart';
+        // Navigate to signup page
+        navigate('/signup');
     };
 
-    if (
-        !data ||
-        !Array.isArray(data.modes) ||
-        data.modes.length === 0
-    ) {
+    // Check if data is missing or invalid
+    if (!data) {
+        console.warn('Year3FormatsSection: Missing course data');
         return (
             <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
-                    {/* Loading Progress Bar */}
-                    <LinearProgress
-                        sx={{
-                            height: 3,
-                            backgroundColor: '#e3f2fd',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundColor: '#1976d2'
-                            }
-                        }}
-                    />
-                    {/* Commented out gradient version */}
-                    {/* 
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#f0f0f0',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-                            }
-                        }} 
-                    />
-                    */}
                     <Box textAlign="center" sx={{ py: 5 }}>
-                        <Typography variant="h6">Loading course formats...</Typography>
+                        <Typography variant="h6">Course information unavailable</Typography>
                         <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            Please wait while we fetch the available formats
+                            Course details are not available at the moment. Please try again later.
                         </Typography>
-                        {/* Commented out original no data message */}
-                        {/* <Typography variant="h6">No course formats available.</Typography> */}
+                    </Box>
+                </Container>
+            </Box>
+        );
+    }
+
+    // Check if modes data is missing or empty
+    if (!Array.isArray(data.modes) || data.modes.length === 0) {
+        console.warn('Year3FormatsSection: Missing or empty modes array', {
+            hasModes: Array.isArray(data.modes),
+            modesLength: data.modes?.length,
+            dataKeys: Object.keys(data)
+        });
+        return (
+            <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
+                <Container sx={containerStyles}>
+                    <Box textAlign="center" sx={{ py: 5 }}>
+                        <Typography variant="h6">No course formats available</Typography>
+                        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                            Course formats for this course are not available at the moment. Please contact us for more information.
+                        </Typography>
                     </Box>
                 </Container>
             </Box>

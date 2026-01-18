@@ -67,6 +67,7 @@ const TakePaper = lazy(() => import("./Pages/Student/TakePaper"));
 const PaperResults = lazy(() => import("./Pages/Student/PaperResults"));
 const PaymentSuccess = lazy(() => import("./Pages/PaymentSuccess"));
 const PaymentCancel = lazy(() => import("./Pages/PaymentCancel"));
+const RegistrationSuccess = lazy(() => import("./Pages/RegistrationSuccess"));
 
 
 const routes = [
@@ -103,7 +104,10 @@ const routes = [
   { path: "/payment-success", element: <PaymentSuccess /> },
   { path: "/payment-cancel", element: <PaymentCancel /> },
   { path: "/paper/payment-success", element: <PaymentSuccess /> },
-  { path: "/parent/paper/payment-success", element: <PaymentSuccess /> } 
+  { path: "/parent/paper/payment-success", element: <PaymentSuccess /> },
+  
+  // Registration Success
+  { path: "/registration-success", element: <RegistrationSuccess /> } 
 ];
 
 const AppRoutes = () => {

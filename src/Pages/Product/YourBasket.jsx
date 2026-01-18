@@ -16,19 +16,18 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../../api";
 
-// Lazy load the modals to avoid initialization issues
-const ParentRegistrationModal = React.lazy(() => import("../../components/ParentRegistrationModal"));
+// Lazy load the login modal
 const ParentLoginModal = React.lazy(() => import("../../components/ParentLoginModal"));
 
 // Fixed: Removed Snackbar/Alert imports to resolve ESLint errors
 export default function YourBasket() {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, loading } = useSelector((state) => state.cart);
   const [updatingItems, setUpdatingItems] = useState(new Set());
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [snackbar, setSnackbar] = useState({
@@ -173,9 +172,8 @@ export default function YourBasket() {
 
   const handleLoginSuccess = (userData) => {
     console.log('Login successful:', userData);
-    // Close all modals immediately
+    // Close login modal
     setShowLoginModal(false);
-    setShowRegistrationModal(false);
     
     // Force navbar to update by triggering a re-render
     window.dispatchEvent(new Event('storage'));
@@ -186,20 +184,10 @@ export default function YourBasket() {
     }, 500);
   };
 
-  const handleRegistrationSuccess = (userData) => {
-    console.log('Registration successful:', userData);
-    // Registration doesn't automatically log in user
-    // The registration modal will handle switching to login modal
-  };
-
   const handleSwitchToRegister = () => {
     setShowLoginModal(false);
-    setShowRegistrationModal(true);
-  };
-
-  const handleSwitchToLogin = () => {
-    setShowRegistrationModal(false);
-    setShowLoginModal(true);
+    // Navigate to signup page instead of opening modal
+    navigate('/signup');
   };
 
   return (
@@ -488,17 +476,6 @@ export default function YourBasket() {
         </Suspense>
       )}
 
-      {/* Parent Registration Modal */}
-      {showRegistrationModal && (
-        <Suspense fallback={<CircularProgress />}>
-          <ParentRegistrationModal
-            open={showRegistrationModal}
-            onClose={() => setShowRegistrationModal(false)}
-            onSuccess={handleRegistrationSuccess}
-            onSwitchToLogin={handleSwitchToLogin}
-          />
-        </Suspense>
-      )}
 
       {/* Custom Toast Notifications */}
       {snackbar.open && (
