@@ -11,7 +11,7 @@ import {
 // Note: Using custom toast notification instead of Snackbar to avoid import issues
 // ESLint cache refresh comment
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCart, updateCartItem, deleteCartItem } from "../../redux/slices/cartSlice";
+import { fetchCart, updateCartItem, deleteCartItem, addToCart } from "../../redux/slices/cartSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
@@ -30,15 +30,117 @@ export default function YourBasket() {
   const [updatingItems, setUpdatingItems] = useState(new Set());
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [guestCartItems, setGuestCartItems] = useState([]);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success' // success, error, warning, info
   });
 
-  useEffect(() => {
-    dispatch(fetchCart());
+  // Get guest cart from localStorage
+  const getGuestCart = () => {
+    try {
+      const guestCart = localStorage.getItem('guestCart');
+      return guestCart ? JSON.parse(guestCart) : [];
+    } catch (error) {
+      console.error('Error reading guest cart:', error);
+      return [];
+    }
+  };
+
+  // Remove from guest cart
+  const removeFromGuestCart = (productId) => {
+    const guestCart = getGuestCart();
+    const updatedCart = guestCart.filter(item => item.product_id !== productId);
+    localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+    setGuestCartItems(updatedCart);
+    window.dispatchEvent(new Event('guestCartUpdated'));
+  };
+
+  // Update guest cart quantity
+  const updateGuestCartQuantity = (productId, quantity) => {
+    if (quantity < 1) {
+      removeFromGuestCart(productId);
+      return;
+    }
+    const guestCart = getGuestCart();
+    const updatedCart = guestCart.map(item =>
+      item.product_id === productId ? { ...item, quantity } : item
+    );
+    localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+    setGuestCartItems(updatedCart);
+    window.dispatchEvent(new Event('guestCartUpdated'));
+  };
+
+  // Sync guest cart to server
+  const syncGuestCartToServer = React.useCallback(async () => {
+    try {
+      const guestCart = getGuestCart();
+      if (guestCart.length === 0) return;
+
+      // Add each item from guest cart to server cart
+      for (const item of guestCart) {
+        try {
+          await dispatch(addToCart({
+            product_type: item.product_type,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price_id: item.price_id,
+          })).unwrap();
+        } catch (error) {
+          console.error('Error adding item to cart:', error);
+        }
+      }
+
+      // Clear guest cart after successful sync
+      localStorage.removeItem('guestCart');
+
+      // Fetch updated cart
+      await dispatch(fetchCart());
+
+      // Update guest cart items state
+      setGuestCartItems([]);
+
+      // Trigger event to update navbar and other components
+      window.dispatchEvent(new Event('guestCartUpdated'));
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error syncing guest cart:', error);
+    }
   }, [dispatch]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // User is logged in - sync guest cart first, then fetch server cart
+      syncGuestCartToServer().then(() => {
+        dispatch(fetchCart());
+      });
+    } else {
+      // User is not logged in - load guest cart
+      const guestCart = getGuestCart();
+      setGuestCartItems(guestCart);
+    }
+  }, [dispatch, syncGuestCartToServer]);
+
+  // Listen for guest cart updates
+  useEffect(() => {
+    const handleGuestCartUpdate = () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        const guestCart = getGuestCart();
+        setGuestCartItems(guestCart);
+      }
+    };
+
+    window.addEventListener('guestCartUpdated', handleGuestCartUpdate);
+    window.addEventListener('storage', handleGuestCartUpdate);
+
+    return () => {
+      window.removeEventListener('guestCartUpdated', handleGuestCartUpdate);
+      window.removeEventListener('storage', handleGuestCartUpdate);
+    };
+  }, []);
 
   // Helper functions for toast messages
   const showToast = (message, severity = 'success') => {
@@ -65,10 +167,10 @@ export default function YourBasket() {
 
   const handleQuantityChange = async (cart_id, quantity) => {
     if (quantity < 1) return;
-    
+
     setUpdatingItems(prev => new Set(prev).add(cart_id));
     const item = items.find(i => i.id === cart_id);
-    
+
     try {
       await dispatch(updateCartItem({ cart_id, quantity, price: item?.price || 0 }));
     } catch (error) {
@@ -91,53 +193,91 @@ export default function YourBasket() {
       });
   };
 
-  const totalAmount = !loading
-    ? items?.reduce((sum, item) => sum + item.total, 0)
-    : 0;
-
-  // Check if parent is logged in
-  const isParentLoggedIn = () => {
-
+  // Get display items (server cart or guest cart)
+  const displayItems = React.useMemo(() => {
     const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('role');
-    return token && userRole === 'Parent';
+    if (token) {
+      // User is logged in - use server cart
+      return items.map(item => ({
+        id: item.id,
+        name: item.name,
+        image: item.image,
+        price: parseFloat(item.price) || 0,
+        quantity: parseInt(item.quantity) || 1,
+        total: parseFloat(item.total) || 0,
+        isGuest: false
+      }));
+    } else {
+      // User is not logged in - use guest cart
+      return guestCartItems.map((item, index) => {
+        // Handle both papers and courses
+        const itemName = item.paper_name || item.course_name || `${item.product_type} ${item.product_id}`;
+        const itemImage = item.paper_image || item.course_image || "https://via.placeholder.com/50";
+        const itemPrice = parseFloat(item.paper_price) || parseFloat(item.course_price) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const total = itemPrice * quantity;
+
+        return {
+          id: `guest-${item.product_id}-${index}`,
+          name: itemName,
+          image: itemImage,
+          price: itemPrice,
+          quantity: quantity,
+          total: total,
+          isGuest: true,
+          product_id: item.product_id,
+          product_type: item.product_type
+        };
+      });
+    }
+  }, [items, guestCartItems]);
+
+  const totalAmount = displayItems.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+
+  const isParentLoggedIn = () => {
+    const token = localStorage.getItem('token');
+    const userRole = localStorage.getItem('role') || '';
+    return !!(token && userRole === 'Parent');
   };
 
   const handlePlaceOrder = async () => {
-    
+
     // Check if parent is logged in
     if (!isParentLoggedIn()) {
-      
       setShowLoginModal(true); // Show login modal first
       return;
     }
 
+    // Ensure cart is up to date before proceeding
+    await dispatch(fetchCart());
+
+    // Wait a bit for Redux state to update
+    await new Promise(resolve => setTimeout(resolve, 300));
+
     // User is logged in, proceed with subscription checkout
     try {
-      // Collect all price_ids from cart items
-      const priceIds = items.map(item => item.price_id).filter(Boolean);
-      console.log('Place Order with price_ids:', priceIds);
-      
-      // Prepare payload for subscription checkout
-      const checkoutPayload = {
-        price_ids: priceIds,
-        // Add any other required fields here
-      };
+      // Check if cart has items (items will be updated from Redux state)
+      if (!items || items.length === 0) {
+        showToast('Your cart is empty. Please add items to your cart first.', 'error');
+        return;
+      }
+
+      console.log('Place Order with items:', items);
 
       setCheckoutLoading(true); // Show loading state
-      
+
       // Hit subscription-checkout API
+      // The backend will automatically get price_ids from cart items
       const response = await api.post('/parent/checkout');
-      
+
       if (response.data.success) {
         console.log('Checkout successful:', response.data);
-        
-        // Check if there's a redirect link in response
-        if (response?.data?.message?.url) {
-          // Redirect to payment gateway
-          window.location.href = response.data.message.url;
+
+        // Redirect to Stripe Checkout (backend returns { data: { url }, message } )
+        const checkoutUrl = response.data?.data?.url ?? response.data?.message?.url ?? response.data?.url;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
         } else {
-          // If no redirect URL, show success message
           showToast('Order placed successfully!', 'success');
         }
       } else {
@@ -147,10 +287,10 @@ export default function YourBasket() {
       console.error('Checkout error:', error);
       console.error('Error response data:', error.response?.data);
       console.error('Error status:', error.response?.status);
-      
+
       // Handle different types of errors
       let errorMessage = '';
-      
+
       if (error.response?.data?.error) {
         errorMessage = error.response.data.error;
       } else if (error.response?.data?.message) {
@@ -162,7 +302,7 @@ export default function YourBasket() {
       } else {
         errorMessage = 'Failed to process order. Please try again.';
       }
-      
+
       // Show error toast with proper styling
       showToast(errorMessage, 'error');
     } finally {
@@ -170,18 +310,26 @@ export default function YourBasket() {
     }
   };
 
-  const handleLoginSuccess = (userData) => {
+  const handleLoginSuccess = async (userData) => {
     console.log('Login successful:', userData);
     // Close login modal
     setShowLoginModal(false);
-    
+
+    // Sync guest cart to server after login
+    await syncGuestCartToServer();
+
+    // Wait for cart to be fetched and updated in Redux state
+    await dispatch(fetchCart());
+
     // Force navbar to update by triggering a re-render
     window.dispatchEvent(new Event('storage'));
-    
-    // After successful login, proceed with order
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // After successful login and cart sync, proceed with order
+    // Give a small delay to ensure state is updated
     setTimeout(() => {
       handlePlaceOrder();
-    }, 500);
+    }, 1000);
   };
 
   const handleSwitchToRegister = () => {
@@ -193,10 +341,10 @@ export default function YourBasket() {
   return (
     <Grid container spacing={4} sx={{ p: 4 }}>
       <Grid item xs={12} md={8}>
-        {loading ? (
+        {loading && localStorage.getItem('token') ? (
           <CircularProgress />
-        ) : items && items.length > 0 ? (
-          items.map((item) => (
+        ) : displayItems && displayItems.length > 0 ? (
+          displayItems.map((item) => (
             <Box
               key={item.id}
               display="flex"
@@ -220,15 +368,27 @@ export default function YourBasket() {
               <Typography>£{item.price.toFixed(2)}</Typography>
 
               <Box display="flex" alignItems="center" gap={1}>
-                <IconButton 
-                  onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                <IconButton
+                  onClick={() => {
+                    if (item.isGuest) {
+                      updateGuestCartQuantity(item.product_id, item.quantity - 1);
+                    } else {
+                      handleQuantityChange(item.id, item.quantity - 1);
+                    }
+                  }}
                   disabled={updatingItems.has(item.id)}
                 >
                   <RemoveIcon />
                 </IconButton>
                 <Typography>{item.quantity}</Typography>
-                <IconButton 
-                  onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                <IconButton
+                  onClick={() => {
+                    if (item.isGuest) {
+                      updateGuestCartQuantity(item.product_id, item.quantity + 1);
+                    } else {
+                      handleQuantityChange(item.id, item.quantity + 1);
+                    }
+                  }}
                   disabled={updatingItems.has(item.id)}
                 >
                   <AddIcon />
@@ -237,26 +397,35 @@ export default function YourBasket() {
 
               <Typography>£{item.total.toFixed(2)}</Typography>
 
-              <IconButton onClick={() => handleDelete(item.id)} color="error">
+              <IconButton
+                onClick={() => {
+                  if (item.isGuest) {
+                    removeFromGuestCart(item.product_id);
+                  } else {
+                    handleDelete(item.id);
+                  }
+                }}
+                color="error"
+              >
                 <DeleteIcon />
               </IconButton>
             </Box>
           ))
         ) : (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'center',
               py: 8,
               textAlign: 'center'
             }}
           >
-            <ShoppingCartIcon 
-              sx={{ 
-                fontSize: 80, 
-                color: '#e0e0e0', 
+            <ShoppingCartIcon
+              sx={{
+                fontSize: 80,
+                color: '#e0e0e0',
                 mb: 2,
                 animation: 'bounce 2s infinite',
                 '@keyframes bounce': {
@@ -270,23 +439,23 @@ export default function YourBasket() {
                     transform: 'translateY(-5px)'
                   }
                 }
-              }} 
+              }}
             />
-            <Typography 
-              variant="h5" 
-              sx={{ 
-                color: '#9e9e9e', 
-                fontWeight: 500, 
-                mb: 1 
+            <Typography
+              variant="h5"
+              sx={{
+                color: '#9e9e9e',
+                fontWeight: 500,
+                mb: 1
               }}
             >
               Your cart is empty
             </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: '#bdbdbd', 
-                mb: 3 
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#bdbdbd',
+                mb: 3
               }}
             >
               Looks like you haven't added any courses yet
@@ -309,7 +478,7 @@ export default function YourBasket() {
                 }
               }}
             >
-              Browse 
+              Browse
             </Button>
           </Box>
         )}
@@ -346,10 +515,10 @@ export default function YourBasket() {
           </Box>
 
           {/* Dynamic Product List from Cart */}
-          {loading ? (
+          {loading && localStorage.getItem('token') ? (
             <Typography>Loading...</Typography>
-          ) : items && items.length > 0 ? (
-            items.map((item) => (
+          ) : displayItems && displayItems.length > 0 ? (
+            displayItems.map((item) => (
               <Box
                 key={item.id}
                 sx={{
@@ -363,7 +532,7 @@ export default function YourBasket() {
                 <Box>
                   <Typography sx={{ fontWeight: 500 }}>{item.name} × {item.quantity}</Typography>
                   <Typography sx={{ fontSize: "12px", color: "#6b7280" }}>
-                   
+
                   </Typography>
                 </Box>
                 <Typography sx={{ fontWeight: 600 }}>£{item.total.toFixed(2)}</Typography>
@@ -396,7 +565,7 @@ export default function YourBasket() {
           </Box>
 
           {/* Coupon Section */}
-        
+
 
           {/* Place Order Button */}
           <Button
@@ -411,7 +580,7 @@ export default function YourBasket() {
               fontWeight: "bold",
               padding: "12px 0",
             }}
-            disabled={loading || items.length === 0 || checkoutLoading}
+            disabled={loading || displayItems.length === 0 || checkoutLoading}
           >
             {checkoutLoading ? (
               <CircularProgress size={20} color="inherit" />
@@ -511,9 +680,9 @@ export default function YourBasket() {
             <Button
               size="small"
               onClick={handleCloseSnackbar}
-              sx={{ 
-                color: 'white', 
-                p: 0.5, 
+              sx={{
+                color: 'white',
+                p: 0.5,
                 minWidth: 'auto',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
               }}

@@ -50,6 +50,7 @@ const Home = lazy(() => import("./Pages/Home"));
 const About = lazy(() => import("./Pages/About"));
 const Course = lazy(() => import("./Pages/Course"));
 const SignUp = lazy(() => import("./Pages/SignUp"));
+const Login = lazy(() => import("./Pages/Login"));
 const CoursesList = lazy(() => import("./Pages/CoursesList"));
 const ProductPage = lazy(() => import("./Pages/Product/ProductPage"));
 const AddToCartComponent = lazy(() => import("./Pages/Product/AddToCartComponent"));
@@ -74,6 +75,7 @@ const routes = [
   { path: "/", element: <Home /> },
   { path: "/about", element: <About /> },
   { path: "/signup", element: <SignUp /> },
+  { path: "/login", element: <Login /> },
   { path: "/course-list", element: <CoursesList /> },
   { path: "/course-view", element: <Course /> },
   { path: "/course/:slug", element: <Course /> },
@@ -95,9 +97,9 @@ const routes = [
 
   // Cart and Checkout
   { path: "/basket", element: <YourBasket /> },
-  { path: "/cart", element: <YourBasket /> },               
+  { path: "/cart", element: <YourBasket /> },
   { path: "/checkout", element: <CheckoutPage /> },
-  { path: "/checkout/:slug", element: <CheckoutPage /> },  
+  { path: "/checkout/:slug", element: <CheckoutPage /> },
   { path: "/order-confirmation", element: <OrderConfirmation /> },
 
   // Payment Pages
@@ -105,9 +107,9 @@ const routes = [
   { path: "/payment-cancel", element: <PaymentCancel /> },
   { path: "/paper/payment-success", element: <PaymentSuccess /> },
   { path: "/parent/paper/payment-success", element: <PaymentSuccess /> },
-  
+
   // Registration Success
-  { path: "/registration-success", element: <RegistrationSuccess /> } 
+  { path: "/registration-success", element: <RegistrationSuccess /> }
 ];
 
 const AppRoutes = () => {

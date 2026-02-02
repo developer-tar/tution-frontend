@@ -76,11 +76,19 @@ const AddToCartMockExam = () => {
         setAddingToCart(true);
         
         try {
+            // Determine product_type based on item type
+            let productType = "mock"; // default for mock exams
+            if (mockExamData.type === "extracted_paper") {
+                productType = "papers";
+            } else if (mockExamData.type === "mock_exam") {
+                productType = "mock_exam";
+            }
+            
             const payload = {
-                product_type: "mock",
+                product_type: productType,
                 product_id: mockExamData.id,
                 quantity: 1,
-                price_id:mockExamData.stripe_price_id
+                price_id: mockExamData.stripe_price_id
             };
 
             const result = await dispatch(addToCart(payload));
@@ -88,7 +96,7 @@ const AddToCartMockExam = () => {
             if (addToCart.fulfilled.match(result)) {
                 setSnackbar({
                     open: true,
-                    message: 'Mock exam added to cart successfully!',
+                    message: (mockExamData.type === "extracted_paper" ? 'Paper' : 'Mock exam') + ' added to cart successfully!',
                     severity: 'success'
                 });
                 

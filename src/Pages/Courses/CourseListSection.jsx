@@ -23,10 +23,21 @@ import {
 } from '@mui/material';
 import { containerStyles } from '../style';
 import api from '../../api';
+import { useDispatch } from 'react-redux';
+import { addToCart, fetchCart } from '../../redux/slices/cartSlice';
 
 export default function CourseListSection({ data, onFiltersChange }) {
+    const dispatch = useDispatch();
+    const [addingToCart, setAddingToCart] = useState(false);
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
 
-    const handleRegisterClick = (course) => {
+    const handleRegisterClick = async (course) => {
+        console.log('Register Now clicked for course:', course);
+        console.log('Course data:', data);
 
         // Determine mode based on location
         const isOnline = course.location?.toLowerCase() === 'online';
@@ -34,23 +45,26 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
         // Get price_id from price_according_to_mode
         let priceId = null;
+        let selectedDuration = null;
         if (data.price_according_to_mode && data.price_according_to_mode[mode]) {
             const modeData = data.price_according_to_mode[mode];
 
             // Use the duration from the course object if available
             if (course.duration && modeData[course.duration]) {
+                selectedDuration = course.duration;
                 priceId = modeData[course.duration].price_id;
             } else {
                 // Fallback to first available duration
                 const firstDuration = Object.keys(modeData)[0];
                 if (firstDuration && modeData[firstDuration]) {
+                    selectedDuration = firstDuration;
                     priceId = modeData[firstDuration].price_id;
                 }
             }
         }
 
-
-        // Store course data in localStorage for add-to-cart page
+        // Store course data in localStorage for signup page
+        // Note: This does NOT clear the cart - cart items are preserved
         const cartData = {
             courseData: data,
             selectedCourse: course,
@@ -60,14 +74,220 @@ export default function CourseListSection({ data, onFiltersChange }) {
             selectedFee: course.fee,
             selectedDayTime: course.dayTime,
             selectedMode: mode,
+            selectedDuration: selectedDuration || course.duration,
             selectedPriceId: priceId,
             timestamp: Date.now()
         };
 
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
 
-        // Navigate to add-to-cart page
-        window.location.href = '/add-to-cart';
+        // Add course to cart (always add, regardless of priceId - backend will handle it)
+        // Check for course ID - use data.id or try to get from course object
+        const courseId = data?.id || course?.id || data?.course_id || course?.course_id;
+
+        if (courseId) {
+            console.log('Adding course to cart, course ID:', courseId);
+            setAddingToCart(true);
+            try {
+                // Check if user is logged in
+                const token = localStorage.getItem('token');
+
+                const payload = {
+                    product_type: "course",
+                    product_id: courseId,
+                    quantity: 1,
+                    price_id: priceId || null // Allow null price_id - backend will create it if needed
+                };
+
+                console.log('Cart payload:', payload);
+
+                if (!token) {
+                    // User is not logged in - add to guest cart
+                    console.log('User not logged in, adding to guest cart');
+                    const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+                    const existingItem = guestCart.find(
+                        item => item.product_id === courseId && item.product_type === 'course'
+                    );
+
+                    if (existingItem) {
+                        existingItem.quantity += 1;
+                        console.log('Course already in cart, incrementing quantity');
+                    } else {
+                        // Parse price from fee string (e.g., "€50" -> 50)
+                        let coursePrice = 0;
+                        if (course.fee) {
+                            const priceMatch = course.fee.toString().match(/[\d.]+/);
+                            if (priceMatch) {
+                                coursePrice = parseFloat(priceMatch[0]);
+                            }
+                        }
+
+                        const newCartItem = {
+                            ...payload,
+                            course_name: data.name,
+                            course_image: data.image || '/assets/images/product-img.png',
+                            course_price: coursePrice,
+                            course_fee: course.fee || '€0', // Keep original format for display
+                            selectedMode: mode,
+                            selectedDuration: selectedDuration || course.duration,
+                        };
+                        guestCart.push(newCartItem);
+                        console.log('Added new course to guest cart:', newCartItem);
+                    }
+
+                    localStorage.setItem('guestCart', JSON.stringify(guestCart));
+                    console.log('Guest cart saved to localStorage:', guestCart);
+
+                    // Trigger guest cart update event to refresh navbar and cart display
+                    window.dispatchEvent(new Event('guestCartUpdated'));
+
+                    // Also trigger storage event for cross-tab updates
+                    window.dispatchEvent(new StorageEvent('storage', {
+                        key: 'guestCart',
+                        newValue: JSON.stringify(guestCart)
+                    }));
+
+                    // Show success message
+                    setSnackbar({
+                        open: true,
+                        message: 'Course added to cart successfully!',
+                        severity: 'success'
+                    });
+                } else {
+                    // User is logged in - add to server cart
+                    console.log('User logged in, adding to server cart');
+                    const result = await dispatch(addToCart(payload));
+                    console.log('Add to cart result:', result);
+
+                    if (addToCart.fulfilled.match(result)) {
+                        // Fetch updated cart to refresh navbar and cart display
+                        await dispatch(fetchCart());
+
+                        // Trigger cart refresh in navbar
+                        localStorage.setItem('cartUpdated', Date.now().toString());
+                        window.dispatchEvent(new StorageEvent('storage', { key: 'cartUpdated' }));
+                        window.dispatchEvent(new Event('cartUpdated'));
+
+                        // Show success message
+                        setSnackbar({
+                            open: true,
+                            message: 'Course added to cart successfully!',
+                            severity: 'success'
+                        });
+                        console.log('Course successfully added to server cart');
+                    } else {
+                        console.error('Failed to add to cart:', result);
+                        throw new Error(result.payload || 'Failed to add to cart');
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding course to cart:', error);
+                // Show error message but continue to signup page
+                setSnackbar({
+                    open: true,
+                    message: 'Failed to add course to cart. You can still proceed.',
+                    severity: 'warning'
+                });
+            } finally {
+                setAddingToCart(false);
+
+                // Navigate to signup page after cart operation completes
+                setTimeout(() => {
+                    console.log('Navigating to signup page');
+                    // Verify cart was saved before navigating
+                    const token = localStorage.getItem('token');
+                    if (!token) {
+                        const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+                        console.log('Guest cart before navigation:', guestCart);
+                        if (guestCart.length === 0) {
+                            console.warn('Warning: Guest cart is empty before navigation');
+                        }
+                    }
+                    window.location.href = '/signup';
+                }, 1500); // Delay to ensure cart is saved and user sees the message
+            }
+        } else {
+            // No course ID available - still try to add with available data
+            console.warn('Course ID is missing. Course data:', data, 'Course object:', course);
+            console.log('Attempting to add to cart without ID...');
+
+            // Still try to add to cart even without ID - backend might handle it
+            setAddingToCart(true);
+            try {
+                const token = localStorage.getItem('token');
+
+                // Try to use course name or slug as identifier
+                const fallbackId = data?.slug || course?.course || 'unknown';
+
+                const payload = {
+                    product_type: "course",
+                    product_id: fallbackId,
+                    quantity: 1,
+                    price_id: priceId || null
+                };
+
+                if (!token) {
+                    // Add to guest cart even without proper ID
+                    const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+                    let coursePrice = 0;
+                    if (course.fee) {
+                        const priceMatch = course.fee.toString().match(/[\d.]+/);
+                        if (priceMatch) {
+                            coursePrice = parseFloat(priceMatch[0]);
+                        }
+                    }
+
+                    guestCart.push({
+                        ...payload,
+                        course_name: data?.name || course?.course || 'Course',
+                        course_image: data?.image || '/assets/images/product-img.png',
+                        course_price: coursePrice,
+                        course_fee: course.fee || '€0',
+                        selectedMode: mode,
+                        selectedDuration: selectedDuration || course.duration,
+                    });
+
+                    localStorage.setItem('guestCart', JSON.stringify(guestCart));
+                    window.dispatchEvent(new Event('guestCartUpdated'));
+
+                    setSnackbar({
+                        open: true,
+                        message: 'Course added to cart!',
+                        severity: 'success'
+                    });
+                } else {
+                    // Try to add to server cart
+                    const result = await dispatch(addToCart(payload));
+                    if (addToCart.fulfilled.match(result)) {
+                        await dispatch(fetchCart());
+                        setSnackbar({
+                            open: true,
+                            message: 'Course added to cart!',
+                            severity: 'success'
+                        });
+                    }
+                }
+            } catch (error) {
+                console.error('Error adding course without ID:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Course information incomplete. Please contact support.',
+                    severity: 'error'
+                });
+            } finally {
+                setAddingToCart(false);
+                setTimeout(() => {
+                    window.location.href = '/signup';
+                }, 1500);
+            }
+        }
+    };
+
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackbar({ ...snackbar, open: false });
     };
     const [filters, setFilters] = useState({
         format: 'All Formats',
@@ -368,11 +588,11 @@ export default function CourseListSection({ data, onFiltersChange }) {
                                             <Button
                                                 variant="contained"
                                                 size="small"
-                                                disabled={course.status === 'Full'}
+                                                disabled={course.status === 'Full' || addingToCart}
                                                 onClick={() => handleRegisterClick(course)}
                                                 sx={{ bgcolor: '#1976d2', '&:hover': { bgcolor: '#1565c0' } }}
                                             >
-                                                {course.status === 'Full' ? 'Full' : 'Register Now'}
+                                                {addingToCart ? 'Adding...' : (course.status === 'Full' ? 'Full' : 'Register Now')}
                                             </Button>
                                         </TableCell>
                                     </TableRow>
@@ -382,6 +602,23 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     </TableContainer>
                 )}
             </Container>
+
+            {/* Snackbar for cart notifications */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={handleCloseSnackbar}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                    variant="filled"
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

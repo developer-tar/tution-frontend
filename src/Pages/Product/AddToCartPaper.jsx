@@ -28,10 +28,9 @@ const AddToCartPaper = () => {
         { label: paperData?.name || "Loading...", path: "#" },
     ];
 
-    // Check user role
+    // Check user role (stored lowercase in localStorage)
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        const role = localStorage.getItem('role');
+        const role = localStorage.getItem('role') || '';
         setIsStudent(role === 'Student');
         setIsParent(role === 'Parent');
     }, []);
@@ -52,7 +51,7 @@ const AddToCartPaper = () => {
             try {
                 setLoading(true);
                 const response = await api.get(`/paper/${slug}/details`);
-                
+
                 if (response.data.success) {
                     setPaperData(response.data.data);
                 } else {
@@ -82,9 +81,9 @@ const AddToCartPaper = () => {
             });
             return;
         }
-        
+
         setAddingToCart(true);
-        
+
         try {
             const payload = {
                 product_type: paperData.product_type || "paper", // Use product_type from API response
@@ -94,14 +93,14 @@ const AddToCartPaper = () => {
             };
 
             const result = await dispatch(addToCart(payload));
-            
+
             if (addToCart.fulfilled.match(result)) {
                 setSnackbar({
                     open: true,
                     message: 'Paper added to cart successfully!',
                     severity: 'success'
                 });
-                
+
                 // Redirect to basket after success
                 setTimeout(() => {
                     navigate('/basket');
@@ -141,7 +140,7 @@ const AddToCartPaper = () => {
         }
 
         setPurchasing(true);
-        
+
         try {
             // Validate stripe_price_id exists
             if (!paperData.stripe_price_id) {
@@ -197,7 +196,7 @@ const AddToCartPaper = () => {
         }
 
         setPurchasing(true);
-        
+
         try {
             // Validate stripe_price_id exists
             if (!paperData.stripe_price_id) {
@@ -299,8 +298,8 @@ const AddToCartPaper = () => {
                         }}
                     >
                         <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                            <IconButton 
-                                component={Link} 
+                            <IconButton
+                                component={Link}
                                 to="/papers"
                                 sx={{ color: "#7b1fa2" }}
                             >
@@ -431,49 +430,32 @@ const AddToCartPaper = () => {
 
                                 {/* Action Buttons */}
                                 <Box sx={{ display: 'flex', gap: 2, flexWrap: 'wrap' }}>
-                                    <Button
-                                        disableElevation
-                                        onClick={handleAddToCart}
-                                        disabled={addingToCart || purchasing}
-                                        sx={{
-                                            ...button,
-                                            flex: 1,
-                                            minWidth: '150px',
-                                            '&:disabled': {
-                                                bgcolor: '#ccc',
-                                                color: '#666'
-                                            }
-                                        }}
-                                    >
-                                        {addingToCart ? 'Adding...' : 'Add to Cart'}
-                                        <Box sx={icon}>
-                                            <ArrowForwardIcon sx={{ fontSize: 20, color: addingToCart ? '#666' : '#EF2A1E' }} />
-                                        </Box>
-                                    </Button>
-                                    
                                     {isStudent && (
                                         <Button
                                             variant="contained"
                                             disableElevation
                                             onClick={handlePurchaseNow}
                                             disabled={addingToCart || purchasing}
+                                            fullWidth
                                             sx={{
                                                 background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
                                                 color: 'white',
                                                 fontWeight: 600,
                                                 borderRadius: '20px',
                                                 px: 3,
-                                                py: 1,
+                                                py: 1.5,
                                                 textTransform: 'none',
-                                                flex: 1,
-                                                minWidth: '150px',
+                                                fontSize: '16px',
                                                 '&:disabled': {
                                                     bgcolor: '#ccc',
                                                     color: '#666'
+                                                },
+                                                '&:hover': {
+                                                    background: 'linear-gradient(90deg, #3a4190 0%, #d1251a 100%)',
                                                 }
                                             }}
                                         >
-                                            {purchasing ? 'Processing...' : 'Purchase Now'}
+                                            {purchasing ? 'Processing...' : 'Pay Now'}
                                         </Button>
                                     )}
 
@@ -483,23 +465,50 @@ const AddToCartPaper = () => {
                                             disableElevation
                                             onClick={handleParentCheckout}
                                             disabled={addingToCart || purchasing}
+                                            fullWidth
                                             sx={{
                                                 background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
                                                 color: 'white',
                                                 fontWeight: 600,
                                                 borderRadius: '20px',
                                                 px: 3,
-                                                py: 1,
+                                                py: 1.5,
                                                 textTransform: 'none',
-                                                flex: 1,
-                                                minWidth: '150px',
+                                                fontSize: '16px',
                                                 '&:disabled': {
                                                     bgcolor: '#ccc',
                                                     color: '#666'
+                                                },
+                                                '&:hover': {
+                                                    background: 'linear-gradient(90deg, #3a4190 0%, #d1251a 100%)',
                                                 }
                                             }}
                                         >
-                                            {purchasing ? 'Processing...' : 'Checkout'}
+                                            {purchasing ? 'Processing...' : 'Pay Now'}
+                                        </Button>
+                                    )}
+
+                                    {!isStudent && !isParent && (
+                                        <Button
+                                            variant="contained"
+                                            disableElevation
+                                            onClick={() => navigate('/signup')}
+                                            fullWidth
+                                            sx={{
+                                                background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
+                                                color: 'white',
+                                                fontWeight: 600,
+                                                borderRadius: '20px',
+                                                px: 3,
+                                                py: 1.5,
+                                                textTransform: 'none',
+                                                fontSize: '16px',
+                                                '&:hover': {
+                                                    background: 'linear-gradient(90deg, #3a4190 0%, #d1251a 100%)',
+                                                }
+                                            }}
+                                        >
+                                            Login to Pay Now
                                         </Button>
                                     )}
                                 </Box>
@@ -508,17 +517,17 @@ const AddToCartPaper = () => {
                     </Grid>
                 </Container>
             </Box>
-            
+
             {/* Success/Error Snackbar */}
-            <Snackbar 
-                open={snackbar.open} 
-                autoHideDuration={4000} 
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={4000}
                 onClose={handleCloseSnackbar}
                 anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
             >
-                <Alert 
-                    onClose={handleCloseSnackbar} 
-                    severity={snackbar.severity} 
+                <Alert
+                    onClose={handleCloseSnackbar}
+                    severity={snackbar.severity}
                     sx={{ width: '100%' }}
                 >
                     {snackbar.message}

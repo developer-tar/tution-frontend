@@ -11,6 +11,7 @@ import {
   FormControlLabel,
   FormControl,
   FormLabel,
+  TextField,
   CircularProgress,
   Snackbar,
   Alert,
@@ -41,6 +42,7 @@ const TakePaper = () => {
   const [showSubmitDialog, setShowSubmitDialog] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
+  const [fetchError, setFetchError] = useState(null);
   const timerRef = useRef(null);
 
   const breadcrumbs = [
@@ -50,56 +52,37 @@ const TakePaper = () => {
   ];
 
   useEffect(() => {
-    // Fetch paper questions and data
-    // Note: API endpoint to fetch questions is not specified in API docs
-    // This may need to be: GET /api/student/paper/{purchaseId}/questions
-    // Or questions may be included in purchase data
     const fetchPaperData = async () => {
+      if (!purchaseId) return;
+      setFetchError(null);
       try {
         setLoading(true);
-        
-        // Try to fetch purchase data first to get paper info
-        try {
-          const purchaseResponse = await api.get(`/student/paper/my-purchases`);
-          const purchase = purchaseResponse.data?.data?.find(p => p.purchase_id === parseInt(purchaseId));
-          
-          if (purchase) {
-            // Set duration from purchase data
-            const duration = purchase.duration_minutes || 120;
-            setTimeRemaining(duration * 60);
-            setPaperData({ duration_minutes: duration });
-            
-            // TODO: Fetch questions - endpoint not specified in API docs
-            // Possible endpoints:
-            // - GET /api/student/paper/{purchaseId}/questions
-            // - GET /api/paper/{paperId}/questions
-            // - Questions may be in purchase data
-            // For now, set empty questions array - will need backend endpoint
-            setQuestions([]);
-          } else {
-            throw new Error('Purchase not found');
-          }
-        } catch (err) {
-          // Fallback: Set default values
+        const response = await api.get(`/student/paper/${purchaseId}/questions`);
+        if (response.data?.success && response.data?.data) {
+          const { duration_minutes, total_marks, questions: qList } = response.data.data;
+          const duration = duration_minutes ?? 120;
+          setTimeRemaining(duration * 60);
+          setPaperData({ duration_minutes: duration, total_marks: total_marks ?? 0 });
+          setQuestions(Array.isArray(qList) ? qList : []);
+        } else {
+          setQuestions([]);
           setTimeRemaining(120 * 60);
           setPaperData({ duration_minutes: 120 });
-          setQuestions([]);
         }
       } catch (err) {
-        console.error('Error fetching paper data:', err);
-        setSnackbar({
-          open: true,
-          message: 'Failed to load exam questions',
-          severity: 'error'
-        });
+        console.error('Error fetching paper questions:', err);
+        const msg = err.response?.data?.message || 'Failed to load exam questions.';
+        setFetchError(msg);
+        setSnackbar({ open: true, message: msg, severity: 'error' });
+        setQuestions([]);
+        setTimeRemaining(120 * 60);
+        setPaperData({ duration_minutes: 120 });
       } finally {
         setLoading(false);
       }
     };
 
-    if (purchaseId) {
-      fetchPaperData();
-    }
+    fetchPaperData();
   }, [purchaseId]);
 
   useEffect(() => {
@@ -165,9 +148,7 @@ const TakePaper = () => {
 
   const handleSubmit = async () => {
     // Validate all questions are answered
-    const unansweredQuestions = questions.filter(
-      (q) => !answers[q.id]
-    );
+    const unansweredQuestions = questions.filter((q) => !isQuestionAnswered(q));
 
     if (unansweredQuestions.length > 0) {
       setSnackbar({
@@ -180,10 +161,18 @@ const TakePaper = () => {
 
     setSubmitting(true);
     try {
-      const answersArray = Object.entries(answers).map(([question_id, option_id]) => ({
-        question_id: parseInt(question_id),
-        option_id: parseInt(option_id),
-      }));
+      const answersArray = questions.map((q) => {
+        const val = answers[q.id];
+        const qt = (q.question_type || '').toLowerCase();
+        const isTextType = ['short_answer', 'essay', 'short answer', 'text'].some((t) => qt.includes(t));
+        const payload = { question_id: parseInt(q.id, 10) };
+        if (isTextType) {
+          payload.answer_text = typeof val === 'string' ? val : '';
+        } else {
+          payload.option_id = typeof val === 'string' && val.includes('_o') ? val : parseInt(val, 10);
+        }
+        return payload;
+      });
 
       const response = await api.post(`/student/paper/${purchaseId}/submit`, {
         answers: answersArray,
@@ -214,7 +203,21 @@ const TakePaper = () => {
 
   const currentQuestion = questions[currentQuestionIndex];
   const progress = questions.length > 0 ? ((currentQuestionIndex + 1) / questions.length) * 100 : 0;
-  const answeredCount = Object.keys(answers).length;
+
+  const isQuestionAnswered = (q) => {
+    const val = answers[q.id];
+    const qt = (q.question_type || '').toLowerCase();
+    const isTextType = ['short_answer', 'essay', 'short answer', 'text'].some((t) => qt.includes(t));
+    if (isTextType) return val != null && typeof val === 'string' && val.trim().length > 0;
+    return val != null && val !== '';
+  };
+  const answeredCount = questions.filter(isQuestionAnswered).length;
+
+  const isMultipleChoice = (q) => {
+    const qt = (q.question_type || '').toLowerCase();
+    if (['short_answer', 'essay', 'short answer', 'text'].some((t) => qt.includes(t))) return false;
+    return true;
+  };
 
   if (loading) {
     return (
@@ -222,6 +225,22 @@ const TakePaper = () => {
         <PageHeader title="Loading Exam..." breadcrumbs={breadcrumbs} />
         <Box sx={{ py: 8, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '400px' }}>
           <CircularProgress />
+        </Box>
+      </>
+    );
+  }
+
+  if (fetchError) {
+    return (
+      <>
+        <PageHeader title="Could not load exam" breadcrumbs={breadcrumbs} />
+        <Box sx={{ py: 8, textAlign: 'center' }}>
+          <Typography variant="h6" color="error" sx={{ mb: 2 }}>
+            {fetchError}
+          </Typography>
+          <Button variant="contained" onClick={() => navigate('/student/my-papers')}>
+            Back to My Papers
+          </Button>
         </Box>
       </>
     );
@@ -274,30 +293,49 @@ const TakePaper = () => {
                 {currentQuestion?.question_text || `Question ${currentQuestionIndex + 1}`}
               </Typography>
 
-              <FormControl component="fieldset">
-                <FormLabel component="legend">Select your answer:</FormLabel>
-                <RadioGroup
-                  value={answers[currentQuestion?.id] || ''}
-                  onChange={(e) => handleAnswerChange(currentQuestion?.id, e.target.value)}
-                >
-                  {currentQuestion?.options?.map((option) => (
-                    <FormControlLabel
-                      key={option.id}
-                      value={option.id}
-                      control={<Radio />}
-                      label={option.option_text}
-                      sx={{
-                        mb: 1,
-                        p: 1,
-                        borderRadius: 1,
-                        '&:hover': {
-                          backgroundColor: 'action.hover',
-                        },
-                      }}
-                    />
-                  ))}
-                </RadioGroup>
-              </FormControl>
+              {currentQuestion && isMultipleChoice(currentQuestion) ? (
+                <FormControl component="fieldset" fullWidth>
+                  <FormLabel component="legend">Select your answer:</FormLabel>
+                  <RadioGroup
+                    value={answers[currentQuestion.id] || ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                  >
+                    {(currentQuestion.options || []).map((option) => (
+                      <FormControlLabel
+                        key={option.id}
+                        value={option.id}
+                        control={<Radio />}
+                        label={option.option_text}
+                        sx={{
+                          mb: 1,
+                          p: 1,
+                          borderRadius: 1,
+                          '&:hover': {
+                            backgroundColor: 'action.hover',
+                          },
+                        }}
+                      />
+                    ))}
+                  </RadioGroup>
+                </FormControl>
+              ) : currentQuestion ? (
+                <Box>
+                  <FormLabel component="legend" sx={{ display: 'block', mb: 1 }}>
+                    {((currentQuestion.question_type || '').toLowerCase().includes('essay') ? 'Write your answer:' : 'Your answer:')}
+                  </FormLabel>
+                  <TextField
+                    fullWidth
+                    multiline={(currentQuestion.question_type || '').toLowerCase().includes('essay')}
+                    minRows={(currentQuestion.question_type || '').toLowerCase().includes('essay') ? 6 : 1}
+                    maxRows={(currentQuestion.question_type || '').toLowerCase().includes('essay') ? 20 : 4}
+                    placeholder={(currentQuestion.question_type || '').toLowerCase().includes('essay') ? 'Type your essay here...' : 'Type your answer here...'}
+                    value={answers[currentQuestion.id] ?? ''}
+                    onChange={(e) => handleAnswerChange(currentQuestion.id, e.target.value)}
+                    variant="outlined"
+                    sx={{ mt: 0.5 }}
+                  />
+                </Box>
+              ) : null}
             </CardContent>
           </Card>
 

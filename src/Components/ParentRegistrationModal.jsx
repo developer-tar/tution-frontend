@@ -71,7 +71,7 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
       setError('All fields are required');
       return false;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
@@ -90,7 +90,7 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -98,11 +98,11 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
 
     try {
       const response = await api.post('/register', formData);
-      
+
       if (response.data.success) {
         // Registration successful - redirect to login modal
         onClose();
-        
+
         // Reset form
         setFormData({
           email: '',
@@ -111,7 +111,7 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
           last_name: '',
           choose_the_role: parentRoleId || 3
         });
-        
+
         // Switch to login modal after successful registration
         setTimeout(() => {
           onSwitchToLogin && onSwitchToLogin();
@@ -121,7 +121,7 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
       }
     } catch (error) {
       console.error('Registration error:', error);
-      
+
       // Handle different types of errors
       if (error.response?.data?.message) {
         setError(error.response.data.message);
@@ -157,8 +157,8 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
@@ -169,13 +169,13 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         pb: 1
       }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: '#1f2937' }}>
+        <Typography component="div" variant="h6" sx={{ fontWeight: 600, color: '#1f2937' }}>
           Parent Registration
         </Typography>
         <IconButton onClick={handleClose} disabled={loading}>
@@ -264,8 +264,8 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
                 component="button"
                 type="button"
                 onClick={handleSwitchToLogin}
-                sx={{ 
-                  color: '#7b1fa2', 
+                sx={{
+                  color: '#7b1fa2',
                   textDecoration: 'none',
                   fontWeight: 600,
                   '&:hover': {
@@ -281,8 +281,8 @@ const ParentRegistrationModal = ({ open, onClose, onSuccess, onSwitchToLogin }) 
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
-            onClick={handleClose} 
+          <Button
+            onClick={handleClose}
             disabled={loading}
             sx={{ textTransform: 'none' }}
           >

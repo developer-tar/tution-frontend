@@ -81,27 +81,8 @@ const MyPapers = () => {
     }
   };
 
-  const handleStartPaper = async (paperId) => {
-    try {
-      const response = await api.post(`/student/paper/${paperId}/start`);
-      
-      if (response.data.success) {
-        // Navigate to take exam page
-        navigate(`/student/paper/${response.data.data.purchase_id}/take`);
-      } else {
-        throw new Error(response.data.message || 'Failed to start paper');
-      }
-    } catch (err) {
-      console.error('Error starting paper:', err);
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.message || 'Failed to start paper',
-        severity: 'error'
-      });
-    }
-  };
-
-  const handleContinuePaper = (purchaseId) => {
+  // Navigate to take exam; backend getQuestions auto-starts the paper if not started
+  const handleTakePaper = (purchaseId) => {
     navigate(`/student/paper/${purchaseId}/take`);
   };
 
@@ -207,12 +188,12 @@ const MyPapers = () => {
                           </Typography>
                         </TableCell>
                         <TableCell align="center">
-                          {paper.status === 0 && (
-                            <Button
+{paper.status === 0 && (
+                              <Button
                               variant="contained"
                               size="small"
                               startIcon={<PlayArrowIcon />}
-                              onClick={() => handleStartPaper(paper.paper_id)}
+                              onClick={() => handleTakePaper(paper.purchase_id)}
                               sx={{ textTransform: 'none', borderRadius: '20px' }}
                             >
                               Start Exam
@@ -224,7 +205,7 @@ const MyPapers = () => {
                               size="small"
                               color="warning"
                               startIcon={<PlayArrowIcon />}
-                              onClick={() => handleContinuePaper(paper.purchase_id)}
+                              onClick={() => handleTakePaper(paper.purchase_id)}
                               sx={{ textTransform: 'none', borderRadius: '20px' }}
                             >
                               Continue

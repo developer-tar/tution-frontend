@@ -18,14 +18,14 @@ function AppWithLoading() {
   useEffect(() => {
     // Show loading when route changes
     setLoading(true);
-    
+
     // Smooth scroll to top when route changes
     window.scrollTo({ top: 0, behavior: 'smooth' });
-    
+
     // Smooth transition to disable scroll
     document.body.style.transition = 'all 0.3s ease';
     document.body.style.overflow = 'hidden';
-    
+
     // Hide loading after minimum 2 seconds
     const timer = setTimeout(() => {
       // Smooth transition to re-enable scroll
@@ -48,28 +48,33 @@ function AppWithLoading() {
     };
   }, [location.pathname]);
 
+  // Hide Navbar and Footer only on login page
+  const hideNavbarFooter = location.pathname === '/login';
+
   return (
     <>
-      <Box sx={{ position: 'sticky', top: 0, zIndex: 1400, backgroundColor: 'white' }}>
-        <Navbar />
-        {/* Global Loading Progress Bar - Sticky with navbar */}
-        {loading && (
-          <LinearProgress 
-            sx={{ 
-              height: 4,
-              backgroundColor: '#e3f2fd',
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: '#1976d2'
-              },
-              animation: 'fadeIn 0.3s ease-in-out',
-              '@keyframes fadeIn': {
-                from: { opacity: 0 },
-                to: { opacity: 1 }
-              }
-            }} 
-          />
-        )}
-      </Box>
+      {!hideNavbarFooter && (
+        <Box sx={{ position: 'sticky', top: 0, zIndex: 1400, backgroundColor: 'white' }}>
+          <Navbar />
+          {/* Global Loading Progress Bar - Sticky with navbar */}
+          {loading && (
+            <LinearProgress
+              sx={{
+                height: 4,
+                backgroundColor: '#e3f2fd',
+                '& .MuiLinearProgress-bar': {
+                  backgroundColor: '#1976d2'
+                },
+                animation: 'fadeIn 0.3s ease-in-out',
+                '@keyframes fadeIn': {
+                  from: { opacity: 0 },
+                  to: { opacity: 1 }
+                }
+              }}
+            />
+          )}
+        </Box>
+      )}
       {/* Loading Overlay - Prevents scroll during loading */}
       {loading && (
         <Box sx={{
@@ -89,7 +94,7 @@ function AppWithLoading() {
         }} />
       )}
       <AppRoutes />
-      <Footer />
+      {!hideNavbarFooter && <Footer />}
     </>
   );
 }

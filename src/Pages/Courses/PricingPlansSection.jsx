@@ -9,22 +9,20 @@ import {
     Container,
     LinearProgress,
 } from '@mui/material';
-import { useNavigate } from 'react-router-dom';
 import { containerStyles, h2, spainColor } from '../style';
 
 export default function PricingPlansSection({ data, filters }) {
-    const navigate = useNavigate();
-
     const handlePlanClick = (plan) => {
         // Get price_id from price_according_to_mode based on selected plan
         let priceId = null;
-        if (data.price_according_to_mode && 
-            data.price_according_to_mode[plan.mode] && 
+        if (data.price_according_to_mode &&
+            data.price_according_to_mode[plan.mode] &&
             data.price_according_to_mode[plan.mode][plan.duration]) {
             priceId = data.price_according_to_mode[plan.mode][plan.duration].price_id;
         }
 
         // Store plan data in localStorage for signup page
+        // Note: This does NOT clear the cart - cart items are preserved
         const cartData = {
             courseData: data,
             selectedPlan: plan,
@@ -39,8 +37,8 @@ export default function PricingPlansSection({ data, filters }) {
 
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
 
-        // Navigate to signup page
-        navigate('/signup');
+        // Navigate to signup page (cart items remain in localStorage/Redux)
+        window.location.href = '/signup';
     };
 
     if (!data || !data.price_according_to_mode) {
@@ -66,35 +64,35 @@ export default function PricingPlansSection({ data, filters }) {
     // Show all plans initially or filter based on applied filters
     const getAllPricingPlans = () => {
         const allPlans = [];
-        
+
         // Check if price_according_to_mode exists and has data
         if (!data.price_according_to_mode || typeof data.price_according_to_mode !== 'object') {
             console.warn('price_according_to_mode is missing or invalid:', data.price_according_to_mode);
             return allPlans;
         }
-        
+
         Object.entries(data.price_according_to_mode).forEach(([mode, pricing]) => {
             // Skip if pricing is not an object
             if (!pricing || typeof pricing !== 'object') {
                 return;
             }
-            
+
             // Apply filters if provided
             if (filters && filters.format && filters.format !== 'All Formats' && filters.format !== mode) {
                 return;
             }
-            
+
             Object.entries(pricing).forEach(([duration, details]) => {
                 // Skip if details is not an object or missing price
                 if (!details || typeof details !== 'object' || !details.price) {
                     return;
                 }
-                
+
                 // Apply installment filter if provided
                 if (filters && filters.installment && filters.installment !== 'All Installment' && filters.installment !== duration) {
                     return;
                 }
-                
+
                 allPlans.push({
                     mode,
                     duration,
@@ -106,7 +104,7 @@ export default function PricingPlansSection({ data, filters }) {
                 });
             });
         });
-        
+
         return allPlans;
     };
 
@@ -115,7 +113,7 @@ export default function PricingPlansSection({ data, filters }) {
     if (pricingPlans.length === 0) {
         // Check if filters are applied
         const hasActiveFilters = filters && (filters.format !== 'All Formats' || filters.installment !== 'All Installment');
-        
+
         return (
             <Box component="section" sx={{ bgcolor: '#f8f9fa', py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
@@ -124,8 +122,8 @@ export default function PricingPlansSection({ data, filters }) {
                             {hasActiveFilters ? 'No plans match your filters' : 'No pricing plans available'}
                         </Typography>
                         <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            {hasActiveFilters 
-                                ? 'Try adjusting your filter selections to see more options.' 
+                            {hasActiveFilters
+                                ? 'Try adjusting your filter selections to see more options.'
                                 : 'Pricing information for this course is currently unavailable. Please contact us for more details.'}
                         </Typography>
                     </Box>

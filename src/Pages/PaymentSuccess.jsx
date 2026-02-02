@@ -16,6 +16,7 @@ import {
   CircularProgress,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
+import CancelIcon from '@mui/icons-material/Cancel';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { Link, useNavigate } from 'react-router-dom';
@@ -31,6 +32,8 @@ const PaymentSuccess = () => {
   const [showToast, setShowToast] = useState(false);
   const [cartSyncing, setCartSyncing] = useState(true);
   const [previousCartCount, setPreviousCartCount] = useState(cartItems.length);
+  const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'failed', 'pending', null
+  const [paymentError, setPaymentError] = useState(null);
   const addStudentUrl = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
 
   const copyToClipboard = () => {
@@ -46,7 +49,7 @@ const PaymentSuccess = () => {
     // Check if user is logged in
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
-    
+
     if (token && (role === 'Parent' || role === 'Student')) {
       setIsLoggedIn(true);
     }
@@ -55,7 +58,7 @@ const PaymentSuccess = () => {
     const urlParams = new URLSearchParams(window.location.search);
     const urlToken = urlParams.get('token');
     const urlRole = urlParams.get('role');
-    
+
     if (urlToken && !token) {
       localStorage.setItem('token', urlToken);
       localStorage.setItem('role', urlRole || 'Parent');
@@ -63,59 +66,93 @@ const PaymentSuccess = () => {
     }
   }, []);
 
-  // Sync cart after payment
+  // Verify payment and sync cart after payment
   useEffect(() => {
-    const syncCartAfterPayment = async () => {
+    const verifyAndSyncPayment = async () => {
       try {
+        const urlParams = new URLSearchParams(window.location.search);
+        const sessionId = urlParams.get('session_id');
+        const role = localStorage.getItem('role');
+        const token = localStorage.getItem('token');
+
+        // Verify payment status if session_id exists
+        if (sessionId && token && role === 'Parent') {
+          try {
+            const verifyResponse = await api.post('/parent/verify-payment', { session_id: sessionId });
+
+            if (verifyResponse.data.success) {
+              const isPaid = verifyResponse.data.data?.paid === true;
+
+              if (isPaid) {
+                setPaymentStatus('success');
+                // Fulfill basket order (create paper_purchases, mock_exam_purchases, clear cart)
+                // so records exist even when Stripe webhook did not fire (e.g. localhost)
+                try {
+                  await api.post('/parent/checkout/fulfill', { session_id: sessionId });
+                } catch (fulfillError) {
+                  console.warn('Fulfill order (non-blocking):', fulfillError?.response?.data || fulfillError.message);
+                }
+              } else {
+                setPaymentStatus('failed');
+                setPaymentError(verifyResponse.data.data?.payment_status || 'Payment not completed');
+              }
+            } else {
+              setPaymentStatus('failed');
+              setPaymentError(verifyResponse.data.message || 'Payment verification failed');
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            setPaymentStatus('failed');
+            setPaymentError(error.response?.data?.message || 'Failed to verify payment status');
+          }
+        } else if (sessionId) {
+          // For other roles or paths, use existing verification logic
+          const currentPath = window.location.pathname;
+
+          try {
+            if (currentPath.includes('/paper/payment-success') && role?.toLowerCase() === 'student') {
+              await api.post('/student/paper/verify-payment', { session_id: sessionId });
+              setPaymentStatus('success');
+            } else if (currentPath.includes('/parent/paper/payment-success')) {
+              // Parent paper payment - webhook handles it
+              setPaymentStatus('success');
+            } else if (currentPath.includes('/mock-exam/payment-success') || currentPath.includes('/parent/mock-exam/payment-success')) {
+              await api.get(`/parent/mock-exam/verify-payment?session_id=${sessionId}`);
+              setPaymentStatus('success');
+            } else {
+              // Default to success if no specific verification
+              setPaymentStatus('success');
+            }
+          } catch (error) {
+            console.warn('Payment verification failed:', error);
+            setPaymentStatus('failed');
+            setPaymentError('Payment verification failed');
+          }
+        } else {
+          // No session_id, assume success (legacy flow)
+          setPaymentStatus('success');
+        }
+
         // Store previous cart count from Redux state
         const currentCount = cartItems.length;
         setPreviousCartCount(currentCount);
-        
+
         // Wait 2-3 seconds for webhook to process
         await new Promise(resolve => setTimeout(resolve, 2500));
-        
+
         // Fetch latest cart from backend
         const result = await dispatch(fetchCart());
-        
+
         if (fetchCart.fulfilled.match(result)) {
           const fetchedCart = result.payload;
           const newCount = fetchedCart.length;
-          
+
           // If backend cart is empty, clear Redux state (payment succeeded, backend cleared cart)
           if (newCount === 0) {
             dispatch(clearCart());
-            // Cart cleared - payment completed successfully
           } else if (newCount < currentCount) {
             // Backend cart reduced but not empty (partial purchase scenario)
-            // Redux state will be updated by fetchCart, no need to clear
-            // But we should still show success
-          } else {
-            // Cart still has items - manual visit or webhook pending
-            // Keep Redux state as-is (already updated by fetchCart)
-          }
-        }
-        
-        // Optional: Verify payment for mock exams or papers if session_id exists
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionId = urlParams.get('session_id');
-        const currentPath = window.location.pathname;
-        const role = localStorage.getItem('role');
-        
-        if (sessionId) {
-          try {
-            // Check if this is a paper payment
-            if (currentPath.includes('/paper/payment-success') && role === 'Student') {
-              // Verify paper payment for students
-              await api.post('/student/paper/verify-payment', { session_id: sessionId });
-            } else if (currentPath.includes('/parent/paper/payment-success')) {
-              // Parent paper payment - webhook handles it, verification is optional
-            } else if (currentPath.includes('/mock-exam/payment-success') || currentPath.includes('/parent/mock-exam/payment-success')) {
-              // Mock exam verification
-              await api.get(`/parent/mock-exam/verify-payment?session_id=${sessionId}`);
-            }
-          } catch (error) {
-            // Verification failed, but cart update is sufficient
-            console.warn('Payment verification failed:', error);
+            // Redux state will be updated by fetchCart
           }
         }
       } catch (error) {
@@ -130,9 +167,10 @@ const PaymentSuccess = () => {
     const token = localStorage.getItem('token');
     const role = localStorage.getItem('role');
     if (token && (role === 'Parent' || role === 'Student')) {
-      syncCartAfterPayment();
+      verifyAndSyncPayment();
     } else {
       setCartSyncing(false);
+      setPaymentStatus('success'); // Default for non-logged in users
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Run only once on mount
@@ -142,16 +180,109 @@ const PaymentSuccess = () => {
     window.location.href = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
   };
 
-  // Show loading state while syncing cart
-  if (cartSyncing) {
+  // Show loading state while verifying payment and syncing cart
+  if (cartSyncing || paymentStatus === null) {
     return (
       <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Box sx={{ textAlign: 'center' }}>
           <CircularProgress sx={{ mb: 2 }} />
           <Typography variant="body1" sx={{ color: '#666' }}>
-            Processing your payment...
+            Verifying your payment...
           </Typography>
         </Box>
+      </Container>
+    );
+  }
+
+  // Show payment failure state
+  if (paymentStatus === 'failed') {
+    return (
+      <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
+        <Grid container spacing={2} justifyContent="center">
+          <Grid item xs={12} md={10}>
+            <Card
+              sx={{
+                textAlign: 'center',
+                p: 3,
+                borderRadius: 3,
+                boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                background: 'linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%)'
+              }}
+            >
+              <CardContent>
+                <Box sx={{ mb: 2 }}>
+                  <CancelIcon
+                    sx={{
+                      fontSize: 60,
+                      color: '#f44336',
+                      filter: 'drop-shadow(0 4px 8px rgba(244,67,54,0.3))'
+                    }}
+                  />
+                </Box>
+
+                <Typography
+                  variant="h4"
+                  sx={{
+                    fontWeight: 700,
+                    color: '#d32f2f',
+                    mb: 1,
+                    fontSize: { xs: '1.5rem', md: '2rem' }
+                  }}
+                >
+                  Payment Failed
+                </Typography>
+
+                <Typography
+                  variant="body1"
+                  sx={{
+                    color: '#666',
+                    mb: 2,
+                    fontSize: { xs: '0.9rem', md: '1rem' }
+                  }}
+                >
+                  {paymentError || 'Your payment could not be processed. Please try again.'}
+                </Typography>
+
+                <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap', mt: 3 }}>
+                  <Button
+                    variant="contained"
+                    size="medium"
+                    component={Link}
+                    to="/basket"
+                    sx={{
+                      background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
+                      color: 'white',
+                      fontWeight: 600,
+                      borderRadius: '20px',
+                      px: 3,
+                      py: 1,
+                      textTransform: 'none',
+                    }}
+                  >
+                    Try Again
+                  </Button>
+                  <Button
+                    variant="outlined"
+                    size="medium"
+                    component={Link}
+                    to="/"
+                    sx={{
+                      borderColor: '#4450A5',
+                      color: '#4450A5',
+                      fontWeight: 600,
+                      borderRadius: '20px',
+                      px: 3,
+                      py: 1,
+                      textTransform: 'none',
+                    }}
+                  >
+                    Back to Home
+                  </Button>
+                </Box>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
       </Container>
     );
   }
@@ -163,9 +294,9 @@ const PaymentSuccess = () => {
     <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
       <Grid container spacing={2} justifyContent="center">
         <Grid item xs={12} md={10}>
-          <Card 
-            sx={{ 
-              textAlign: 'center', 
+          <Card
+            sx={{
+              textAlign: 'center',
               p: 3,
               borderRadius: 3,
               boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
@@ -175,20 +306,20 @@ const PaymentSuccess = () => {
             <CardContent>
               {/* Success Icon */}
               <Box sx={{ mb: 2 }}>
-                <CheckCircleIcon 
-                  sx={{ 
-                    fontSize: 60, 
+                <CheckCircleIcon
+                  sx={{
+                    fontSize: 60,
                     color: '#4caf50',
                     filter: 'drop-shadow(0 4px 8px rgba(76,175,80,0.3))'
-                  }} 
+                  }}
                 />
               </Box>
 
               {/* Success Message */}
-              <Typography 
-                variant="h4" 
-                sx={{ 
-                  fontWeight: 700, 
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 700,
                   color: '#2e7d32',
                   mb: 1,
                   fontSize: { xs: '1.5rem', md: '2rem' }
@@ -197,10 +328,10 @@ const PaymentSuccess = () => {
                 Payment Successful!
               </Typography>
 
-              <Typography 
-                variant="body1" 
-                sx={{ 
-                  color: '#666', 
+              <Typography
+                variant="body1"
+                sx={{
+                  color: '#666',
                   mb: 2,
                   fontSize: { xs: '0.9rem', md: '1rem' }
                 }}
@@ -211,10 +342,10 @@ const PaymentSuccess = () => {
               {/* Next Steps Section - Conditional based on payment type */}
               {(isPaperPayment || isParentPaperPayment) ? (
                 <Box sx={{ mb: 3 }}>
-                  <Typography 
-                    variant="h6" 
-                    sx={{ 
-                      fontWeight: 600, 
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
                       color: '#1976d2',
                       mb: 1,
                       fontSize: { xs: '1rem', md: '1.25rem' }
@@ -222,11 +353,11 @@ const PaymentSuccess = () => {
                   >
                     Next Step: Take Your Exam
                   </Typography>
-                  
-                  <Typography 
-                    variant="body2" 
-                    sx={{ 
-                      color: '#555', 
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#555',
                       mb: 2,
                       fontSize: { xs: '0.85rem', md: '0.95rem' }
                     }}
@@ -235,64 +366,64 @@ const PaymentSuccess = () => {
                   </Typography>
                 </Box>
               ) : (
-              <Box sx={{ mb: 3 }}>
-                <Typography 
-                  variant="h6" 
-                  sx={{ 
-                    fontWeight: 600, 
-                    color: '#1976d2',
-                    mb: 1,
-                    fontSize: { xs: '1rem', md: '1.25rem' }
-                  }}
-                >
-                  Next Step: Enroll Your Student
-                </Typography>
-                
-                <Typography 
-                  variant="body2" 
-                  sx={{ 
-                    color: '#555', 
-                    mb: 2,
-                    fontSize: { xs: '0.85rem', md: '0.95rem' }
-                  }}
-                >
-                  Add your student's details and enroll them to start learning journey.
-                </Typography>
+                <Box sx={{ mb: 3 }}>
+                  <Typography
+                    variant="h6"
+                    sx={{
+                      fontWeight: 600,
+                      color: '#1976d2',
+                      mb: 1,
+                      fontSize: { xs: '1rem', md: '1.25rem' }
+                    }}
+                  >
+                    Next Step: Enroll Your Student
+                  </Typography>
+
+                  <Typography
+                    variant="body2"
+                    sx={{
+                      color: '#555',
+                      mb: 2,
+                      fontSize: { xs: '0.85rem', md: '0.95rem' }
+                    }}
+                  >
+                    Add your student's details and enroll them to start learning journey.
+                  </Typography>
 
                   {/* URL Copy Section - Only for course payments */}
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="body2" sx={{ color: '#666', mb: 1, fontSize: '0.8rem' }}>
-                    If button doesn't work, copy this URL:
-                  </Typography>
-                  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
-                    <TextField
-                      value={addStudentUrl}
-                      size="small"
-                      InputProps={{
-                        readOnly: true,
-                        style: { fontSize: '0.75rem' }
-                      }}
-                      sx={{ 
-                        maxWidth: '300px',
-                        '& .MuiOutlinedInput-root': {
-                          height: '32px'
-                        }
-                      }}
-                    />
-                    <IconButton 
-                      onClick={copyToClipboard}
-                      size="small"
-                      sx={{ 
-                        bgcolor: '#1976d2', 
-                        color: 'white',
-                        '&:hover': { bgcolor: '#1565c0' }
-                      }}
-                    >
-                      <ContentCopyIcon fontSize="small" />
-                    </IconButton>
+                  <Box sx={{ mb: 2 }}>
+                    <Typography variant="body2" sx={{ color: '#666', mb: 1, fontSize: '0.8rem' }}>
+                      If button doesn't work, copy this URL:
+                    </Typography>
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, justifyContent: 'center' }}>
+                      <TextField
+                        value={addStudentUrl}
+                        size="small"
+                        InputProps={{
+                          readOnly: true,
+                          style: { fontSize: '0.75rem' }
+                        }}
+                        sx={{
+                          maxWidth: '300px',
+                          '& .MuiOutlinedInput-root': {
+                            height: '32px'
+                          }
+                        }}
+                      />
+                      <IconButton
+                        onClick={copyToClipboard}
+                        size="small"
+                        sx={{
+                          bgcolor: '#1976d2',
+                          color: 'white',
+                          '&:hover': { bgcolor: '#1565c0' }
+                        }}
+                      >
+                        <ContentCopyIcon fontSize="small" />
+                      </IconButton>
+                    </Box>
                   </Box>
                 </Box>
-              </Box>
               )}
 
               {/* Action Buttons */}
@@ -350,54 +481,54 @@ const PaymentSuccess = () => {
                   </>
                 ) : (
                   <>
-                <Button
-                  variant="contained"
-                  size="medium"
-                  startIcon={<PersonAddIcon />}
-                  onClick={handleAddStudent}
-                  sx={{
-                    background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
-                    color: 'white',
-                    fontWeight: 600,
-                    borderRadius: '20px',
-                    px: 3,
-                    py: 1,
-                    textTransform: 'none',
-                    fontSize: { xs: '0.9rem', md: '1rem' },
-                    boxShadow: '0 4px 15px rgba(68,80,165,0.3)',
-                    '&:hover': {
-                      transform: 'translateY(-2px)',
-                      boxShadow: '0 6px 20px rgba(68,80,165,0.4)',
-                    },
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Add Student Details
-                </Button>
-                <Button
-                  variant="outlined"
-                  size="medium"
-                  component={Link}
-                  to="/"
-                  sx={{
-                    borderColor: '#4450A5',
-                    color: '#4450A5',
-                    fontWeight: 600,
-                    borderRadius: '20px',
-                    px: 3,
-                    py: 1,
-                    textTransform: 'none',
-                    fontSize: { xs: '0.9rem', md: '1rem' },
-                    '&:hover': {
-                      borderColor: '#EF2A1E',
-                      color: '#EF2A1E',
-                      transform: 'translateY(-2px)',
-                    },
-                    transition: 'all 0.3s ease'
-                  }}
-                >
-                  Back to Home
-                </Button>
+                    <Button
+                      variant="contained"
+                      size="medium"
+                      startIcon={<PersonAddIcon />}
+                      onClick={handleAddStudent}
+                      sx={{
+                        background: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)',
+                        color: 'white',
+                        fontWeight: 600,
+                        borderRadius: '20px',
+                        px: 3,
+                        py: 1,
+                        textTransform: 'none',
+                        fontSize: { xs: '0.9rem', md: '1rem' },
+                        boxShadow: '0 4px 15px rgba(68,80,165,0.3)',
+                        '&:hover': {
+                          transform: 'translateY(-2px)',
+                          boxShadow: '0 6px 20px rgba(68,80,165,0.4)',
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Add Student Details
+                    </Button>
+                    <Button
+                      variant="outlined"
+                      size="medium"
+                      component={Link}
+                      to="/"
+                      sx={{
+                        borderColor: '#4450A5',
+                        color: '#4450A5',
+                        fontWeight: 600,
+                        borderRadius: '20px',
+                        px: 3,
+                        py: 1,
+                        textTransform: 'none',
+                        fontSize: { xs: '0.9rem', md: '1rem' },
+                        '&:hover': {
+                          borderColor: '#EF2A1E',
+                          color: '#EF2A1E',
+                          transform: 'translateY(-2px)',
+                        },
+                        transition: 'all 0.3s ease'
+                      }}
+                    >
+                      Back to Home
+                    </Button>
                   </>
                 )}
               </Box>
