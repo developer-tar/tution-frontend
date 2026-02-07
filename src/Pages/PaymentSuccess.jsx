@@ -7,13 +7,19 @@ import {
   Card,
   CardContent,
   Grid,
-  Chip,
-  Divider,
   TextField,
   IconButton,
   Snackbar,
   Alert,
   CircularProgress,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import CancelIcon from '@mui/icons-material/Cancel';
@@ -35,6 +41,17 @@ const PaymentSuccess = () => {
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'failed', 'pending', null
   const [paymentError, setPaymentError] = useState(null);
   const addStudentUrl = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
+
+  // Assign paper to student (parent paper payment success)
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [parentStudents, setParentStudents] = useState([]);
+  const [paperPurchases, setPaperPurchases] = useState([]);
+  const [selectedPurchaseId, setSelectedPurchaseId] = useState('');
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [assignLoading, setAssignLoading] = useState(false);
+  const [assignDialogFetchLoading, setAssignDialogFetchLoading] = useState(false);
+  const [assignError, setAssignError] = useState('');
+  const [assignSuccess, setAssignSuccess] = useState(false);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(addStudentUrl);
@@ -180,6 +197,66 @@ const PaymentSuccess = () => {
     window.location.href = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
   };
 
+  const handleOpenAssignDialog = async () => {
+    setAssignDialogOpen(true);
+    setAssignError('');
+    setAssignSuccess(false);
+    setSelectedPurchaseId('');
+    setSelectedStudentId('');
+    setAssignDialogFetchLoading(true);
+    try {
+      const [studentsRes, purchasesRes] = await Promise.all([
+        api.get('/parent/students/names'),
+        api.get('/parent/paper-purchases'),
+      ]);
+      const students = studentsRes.data?.success ? (studentsRes.data.data || []) : [];
+      const purchases = purchasesRes.data?.success ? (purchasesRes.data.data || []) : [];
+      setParentStudents(students);
+      setPaperPurchases(purchases);
+      if (purchases.length > 0) {
+        setSelectedPurchaseId(String(purchases[0].purchase_id));
+      }
+    } catch (err) {
+      console.error('Failed to load students or purchases:', err);
+      setAssignError(err.response?.data?.message || 'Failed to load students or purchases.');
+      setParentStudents([]);
+      setPaperPurchases([]);
+    } finally {
+      setAssignDialogFetchLoading(false);
+    }
+  };
+
+  const handleCloseAssignDialog = () => {
+    setAssignDialogOpen(false);
+    setAssignError('');
+    setAssignSuccess(false);
+  };
+
+  const handleAssignStudent = async () => {
+    if (!selectedPurchaseId || !selectedStudentId) {
+      setAssignError('Please select a paper and a student.');
+      return;
+    }
+    setAssignLoading(true);
+    setAssignError('');
+    try {
+      const res = await api.put(`/parent/paper-purchases/${selectedPurchaseId}/assign-student`, {
+        student_id: parseInt(selectedStudentId, 10),
+      });
+      if (res.data?.success) {
+        setAssignSuccess(true);
+        setParentStudents((prev) => prev.map((s) => (String(s.id) === selectedStudentId ? { ...s, assigned: true } : s)));
+        setTimeout(() => handleCloseAssignDialog(), 1500);
+      } else {
+        setAssignError(res.data?.message || 'Assign failed.');
+      }
+    } catch (err) {
+      setAssignError(err.response?.data?.message || 'Failed to assign student.');
+    } finally {
+      setAssignLoading(false);
+    }
+  };
+
   // Show loading state while verifying payment and syncing cart
   if (cartSyncing || paymentStatus === null) {
     return (
@@ -289,6 +366,7 @@ const PaymentSuccess = () => {
 
   const isPaperPayment = window.location.pathname.includes('/paper/payment-success');
   const isParentPaperPayment = window.location.pathname.includes('/parent/paper/payment-success');
+  const isParent = (localStorage.getItem('role') || '').toLowerCase() === 'parent';
 
   return (
     <Container maxWidth="md" sx={{ py: 4, minHeight: '100vh', display: 'flex', alignItems: 'center' }}>
@@ -430,6 +508,32 @@ const PaymentSuccess = () => {
               <Box sx={{ display: 'flex', gap: 1.5, justifyContent: 'center', flexWrap: 'wrap' }}>
                 {(isPaperPayment || isParentPaperPayment) ? (
                   <>
+                    {isParent && (
+                      <Button
+                        variant="contained"
+                        size="medium"
+                        startIcon={<PersonAddIcon />}
+                        onClick={handleOpenAssignDialog}
+                        sx={{
+                          background: 'linear-gradient(90deg, #1976d2 0%, #1565c0 100%)',
+                          color: 'white',
+                          fontWeight: 600,
+                          borderRadius: '20px',
+                          px: 3,
+                          py: 1,
+                          textTransform: 'none',
+                          fontSize: { xs: '0.9rem', md: '1rem' },
+                          boxShadow: '0 4px 15px rgba(25,118,210,0.3)',
+                          '&:hover': {
+                            transform: 'translateY(-2px)',
+                            boxShadow: '0 6px 20px rgba(25,118,210,0.4)',
+                          },
+                          transition: 'all 0.3s ease'
+                        }}
+                      >
+                        Add student details
+                      </Button>
+                    )}
                     <Button
                       variant="contained"
                       size="medium"
@@ -537,6 +641,83 @@ const PaymentSuccess = () => {
           </Card>
         </Grid>
       </Grid>
+
+      {/* Assign paper to student dialog (parent paper payment) */}
+      <Dialog open={assignDialogOpen} onClose={handleCloseAssignDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Assign paper to student</DialogTitle>
+        <DialogContent>
+          {assignDialogFetchLoading ? (
+            <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+              <CircularProgress />
+            </Box>
+          ) : (
+            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+              {assignError && (
+                <Alert severity="error" onClose={() => setAssignError('')}>
+                  {assignError}
+                </Alert>
+              )}
+              {assignSuccess && (
+                <Alert severity="success">Student assigned successfully.</Alert>
+              )}
+              {parentStudents.length === 0 && !assignDialogFetchLoading ? (
+                <Typography color="text.secondary">
+                  You have no students linked to your account. Add a student first, then you can assign papers to them.
+                </Typography>
+              ) : paperPurchases.length === 0 ? (
+                <Typography color="text.secondary">
+                  No paper purchases found yet. Your purchase may still be processing—try again in a moment.
+                </Typography>
+              ) : (
+                <>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="assign-purchase-label">Purchased paper</InputLabel>
+                    <Select
+                      labelId="assign-purchase-label"
+                      value={selectedPurchaseId}
+                      label="Purchased paper"
+                      onChange={(e) => setSelectedPurchaseId(e.target.value)}
+                    >
+                      {paperPurchases.map((p) => (
+                        <MenuItem key={p.purchase_id} value={String(p.purchase_id)}>
+                          {p.paper_name || `Purchase #${p.purchase_id}`}
+                          {p.student_name ? ` (${p.student_name})` : ''}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                  <FormControl fullWidth size="small">
+                    <InputLabel id="assign-student-label">Student to assign</InputLabel>
+                    <Select
+                      labelId="assign-student-label"
+                      value={selectedStudentId}
+                      label="Student to assign"
+                      onChange={(e) => setSelectedStudentId(e.target.value)}
+                    >
+                      {parentStudents.map((s) => (
+                        <MenuItem key={s.id} value={String(s.id)}>
+                          {s.full_name}
+                          {s.email ? ` (${s.email})` : ''}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                  </FormControl>
+                </>
+              )}
+            </Box>
+          )}
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={handleCloseAssignDialog}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleAssignStudent}
+            disabled={assignLoading || parentStudents.length === 0 || paperPurchases.length === 0 || !selectedPurchaseId || !selectedStudentId}
+          >
+            {assignLoading ? 'Assigning...' : 'Assign'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Toast Notification */}
       <Snackbar
