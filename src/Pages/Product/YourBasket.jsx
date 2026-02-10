@@ -48,25 +48,30 @@ export default function YourBasket() {
     }
   };
 
-  // Remove from guest cart
-  const removeFromGuestCart = (productId) => {
+  // Remove from guest cart (for courses, match by product_id + price_id so each row is separate)
+  const removeFromGuestCart = (productId, priceId) => {
     const guestCart = getGuestCart();
-    const updatedCart = guestCart.filter(item => item.product_id !== productId);
+    const updatedCart = guestCart.filter(item => {
+      if (item.product_id !== productId) return true;
+      if (priceId != null && priceId !== '') return item.price_id !== priceId;
+      return false;
+    });
     localStorage.setItem('guestCart', JSON.stringify(updatedCart));
     setGuestCartItems(updatedCart);
     window.dispatchEvent(new Event('guestCartUpdated'));
   };
 
-  // Update guest cart quantity
-  const updateGuestCartQuantity = (productId, quantity) => {
+  // Update guest cart quantity (for courses, match by product_id + price_id)
+  const updateGuestCartQuantity = (productId, quantity, priceId) => {
     if (quantity < 1) {
-      removeFromGuestCart(productId);
+      removeFromGuestCart(productId, priceId);
       return;
     }
     const guestCart = getGuestCart();
-    const updatedCart = guestCart.map(item =>
-      item.product_id === productId ? { ...item, quantity } : item
-    );
+    const updatedCart = guestCart.map(item => {
+      const match = item.product_id === productId && (priceId == null || priceId === '' || item.price_id === priceId);
+      return match ? { ...item, quantity } : item;
+    });
     localStorage.setItem('guestCart', JSON.stringify(updatedCart));
     setGuestCartItems(updatedCart);
     window.dispatchEvent(new Event('guestCartUpdated'));
@@ -198,27 +203,38 @@ export default function YourBasket() {
     const token = localStorage.getItem('token');
     if (token) {
       // User is logged in - use server cart
-      return items.map(item => ({
-        id: item.id,
-        name: item.name,
-        image: item.image,
-        price: parseFloat(item.price) || 0,
-        quantity: parseInt(item.quantity) || 1,
-        total: parseFloat(item.total) || 0,
-        isGuest: false
-      }));
+      return items.map(item => {
+        const nameWithDuration = item.course_duration ? `${item.name} – ${item.course_duration}` : item.name;
+        return {
+          id: item.id,
+          name: nameWithDuration,
+          image: item.image,
+          price: parseFloat(item.price) || 0,
+          quantity: parseInt(item.quantity) || 1,
+          total: parseFloat(item.total) || 0,
+          isGuest: false,
+          product_type: item.product_type || null,
+          registration_fee_display: item.registration_fee_display || null
+        };
+      });
     } else {
       // User is not logged in - use guest cart
       return guestCartItems.map((item, index) => {
-        // Handle both papers and courses
-        const itemName = item.paper_name || item.course_name || `${item.product_type} ${item.product_id}`;
+        const duration = item.course_duration || item.selectedDuration;
+        const durationLabel = duration ? (() => {
+          const d = String(duration).trim();
+          const num = parseInt(d, 10);
+          if (!Number.isNaN(num)) return num === 1 ? '1 month' : `${num} months`;
+          return d;
+        })() : '';
+        const itemName = item.paper_name || (item.course_name ? (durationLabel ? `${item.course_name} – ${durationLabel}` : item.course_name) : `${item.product_type} ${item.product_id}`);
         const itemImage = item.paper_image || item.course_image || "https://via.placeholder.com/50";
         const itemPrice = parseFloat(item.paper_price) || parseFloat(item.course_price) || 0;
         const quantity = parseInt(item.quantity) || 1;
         const total = itemPrice * quantity;
 
         return {
-          id: `guest-${item.product_id}-${index}`,
+          id: `guest-${item.product_id}-${item.price_id || ''}-${index}`,
           name: itemName,
           image: itemImage,
           price: itemPrice,
@@ -226,7 +242,9 @@ export default function YourBasket() {
           total: total,
           isGuest: true,
           product_id: item.product_id,
-          product_type: item.product_type
+          price_id: item.price_id || null,
+          product_type: item.product_type,
+          registration_fee_display: item.registration_fee_display || null
         };
       });
     }
@@ -242,68 +260,37 @@ export default function YourBasket() {
 
   const handlePlaceOrder = async () => {
 
-    // Check if parent is logged in
+    // Guest: show login so they can then go to Stripe. Logged-in: redirect to Stripe payment gateway
     if (!isParentLoggedIn()) {
-      setShowLoginModal(true); // Show login modal first
+      setShowLoginModal(true);
       return;
     }
 
-    // Ensure cart is up to date before proceeding
     await dispatch(fetchCart());
-
-    // Wait a bit for Redux state to update
     await new Promise(resolve => setTimeout(resolve, 300));
 
-    // User is logged in, proceed with subscription checkout
+    if (!items || items.length === 0) {
+      showToast('Your cart is empty. Please add items to your cart first.', 'error');
+      return;
+    }
+
+    setCheckoutLoading(true);
     try {
-      // Check if cart has items (items will be updated from Redux state)
-      if (!items || items.length === 0) {
-        showToast('Your cart is empty. Please add items to your cart first.', 'error');
-        return;
-      }
-
-      console.log('Place Order with items:', items);
-
-      setCheckoutLoading(true); // Show loading state
-
-      // Hit subscription-checkout API
-      // The backend will automatically get price_ids from cart items
       const response = await api.post('/parent/checkout');
-
       if (response.data.success) {
-        console.log('Checkout successful:', response.data);
-
-        // Redirect to Stripe Checkout (backend returns { data: { url }, message } )
         const checkoutUrl = response.data?.data?.url ?? response.data?.message?.url ?? response.data?.url;
         if (checkoutUrl) {
           window.location.href = checkoutUrl;
-        } else {
-          showToast('Order placed successfully!', 'success');
+          return;
         }
+        showToast('Order placed successfully!', 'success');
       } else {
-        showToast('Failed to process order. Please try again.', 'error');
+        showToast(response.data?.message || 'Failed to process order.', 'error');
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      console.error('Error response data:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-
-      // Handle different types of errors
-      let errorMessage = '';
-
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Checkout service not available. Please try again later.';
-      } else if (error.response?.status >= 400) {
-        errorMessage = `Server error (${error.response.status}). Please try again.`;
-      } else {
-        errorMessage = 'Failed to process order. Please try again.';
-      }
-
-      // Show error toast with proper styling
+      const errorMessage = error.response?.data?.data?.error
+        || error.response?.data?.message
+        || 'Failed to process order. Please try again.';
       showToast(errorMessage, 'error');
     } finally {
       setCheckoutLoading(false);
@@ -371,7 +358,7 @@ export default function YourBasket() {
                 <IconButton
                   onClick={() => {
                     if (item.isGuest) {
-                      updateGuestCartQuantity(item.product_id, item.quantity - 1);
+                      updateGuestCartQuantity(item.product_id, item.quantity - 1, item.price_id);
                     } else {
                       handleQuantityChange(item.id, item.quantity - 1);
                     }
@@ -384,7 +371,7 @@ export default function YourBasket() {
                 <IconButton
                   onClick={() => {
                     if (item.isGuest) {
-                      updateGuestCartQuantity(item.product_id, item.quantity + 1);
+                      updateGuestCartQuantity(item.product_id, item.quantity + 1, item.price_id);
                     } else {
                       handleQuantityChange(item.id, item.quantity + 1);
                     }
@@ -398,13 +385,13 @@ export default function YourBasket() {
               <Typography>£{item.total.toFixed(2)}</Typography>
 
               <IconButton
-                onClick={() => {
-                  if (item.isGuest) {
-                    removeFromGuestCart(item.product_id);
-                  } else {
-                    handleDelete(item.id);
-                  }
-                }}
+onClick={() => {
+                    if (item.isGuest) {
+                      removeFromGuestCart(item.product_id, item.price_id);
+                    } else {
+                      handleDelete(item.id);
+                    }
+                  }}
                 color="error"
               >
                 <DeleteIcon />
@@ -531,9 +518,6 @@ export default function YourBasket() {
               >
                 <Box>
                   <Typography sx={{ fontWeight: 500 }}>{item.name} × {item.quantity}</Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#6b7280" }}>
-
-                  </Typography>
                 </Box>
                 <Typography sx={{ fontWeight: 600 }}>£{item.total.toFixed(2)}</Typography>
               </Box>

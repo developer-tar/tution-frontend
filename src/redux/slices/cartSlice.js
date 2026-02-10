@@ -8,12 +8,15 @@ export const fetchCart = createAsyncThunk("cart/fetchCart", async (_, { rejectWi
     const rawItems = res.data.data || [];
 
     return rawItems.map((item, index) => ({
-      id: item.cart_id || item.id || index, // Handle different ID formats
+      id: item.cart_id || item.id || index,
       name: item.course_name,
       image: item.course_image,
       quantity: item.quantity,
       price: parseFloat(item.course_price),
       total: parseFloat(item.total_price),
+      product_type: item.product_type || null,
+      registration_fee_display: item.registration_fee_display || null,
+      course_duration: item.course_duration || null,
     }));
   } catch (err) {
     return rejectWithValue(err.response?.data?.message || err.message);

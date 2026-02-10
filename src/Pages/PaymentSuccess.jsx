@@ -40,7 +40,7 @@ const PaymentSuccess = () => {
   const [previousCartCount, setPreviousCartCount] = useState(cartItems.length);
   const [paymentStatus, setPaymentStatus] = useState(null); // 'success', 'failed', 'pending', null
   const [paymentError, setPaymentError] = useState(null);
-  const addStudentUrl = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
+  const addStudentUrl = `${process.env.REACT_APP_PARENT_URL || ''}parent/billing/course`;
 
   // Assign paper to student (parent paper payment success)
   const [assignDialogOpen, setAssignDialogOpen] = useState(false);
@@ -194,7 +194,7 @@ const PaymentSuccess = () => {
 
   const handleAddStudent = () => {
     // Redirect to add student page
-    window.location.href = `${process.env.REACT_APP_PARENT_URL}parent/add-student`;
+    window.location.href = addStudentUrl;
   };
 
   const handleOpenAssignDialog = async () => {

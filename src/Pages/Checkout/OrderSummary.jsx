@@ -97,9 +97,6 @@ export default function OrderSummary() {
               fontWeight: 600,
               borderRadius: "30px",
               textTransform: "none",
-              // "&:hover": {
-              //     background: "linear-gradient(to right, #ff4b2b, #ff416c)",
-              // },
             }}
           >
             Apply Coupon

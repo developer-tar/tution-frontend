@@ -510,6 +510,12 @@ export default function SignUp() {
               window.location.href = checkoutResponse.data.data.checkout_url;
               return; // Exit early as we're redirecting
             }
+            if (checkoutResponse.data.success && checkoutResponse.data.data?.no_payment_required) {
+              // Registration fee was 0 - already complete
+              sessionStorage.setItem('registrationData', JSON.stringify(response.data.data));
+              window.location.href = "/registration-success";
+              return;
+            }
           } catch (paymentError) {
             console.error("Payment checkout error:", paymentError);
             // If payment fails, still show registration success
@@ -737,6 +743,16 @@ export default function SignUp() {
               window.location.href = checkoutResponse.data.data.checkout_url;
             }, 2000);
             return; // Exit early as we're redirecting
+          } else if (checkoutResponse.data.success && checkoutResponse.data.data?.no_payment_required) {
+            setSnackbar({
+              open: true,
+              message: checkoutResponse.data.message || 'Registration complete.',
+              severity: 'success'
+            });
+            setTimeout(() => {
+              window.location.href = '/registration-success';
+            }, 1500);
+            return;
           } else {
             setSnackbar({
               open: true,
@@ -1256,7 +1272,9 @@ export default function SignUp() {
                         )}
                       </Box>
                       <Typography sx={{ fontWeight: 600, alignSelf: "flex-end", mt: 1 }}>
-                        {courseData.selectedPrice || courseData.selectedPlan?.price || "£0.00"}
+                        {courseData.selectedRegistrationFee != null && Number(courseData.selectedRegistrationFee) >= 0
+                          ? `${courseData.selectedRegistrationFeeCurrency || "€"}${Number(courseData.selectedRegistrationFee).toFixed(2)}`
+                          : (courseData.selectedPrice || courseData.selectedPlan?.price || "£0.00")}
                       </Typography>
                     </Box>
                   ) : (
@@ -1292,7 +1310,9 @@ export default function SignUp() {
                       {isLoggedIn && paperData
                         ? `${paperData.currency || '€'}${paperData.price}`
                         : courseData
-                          ? (courseData.selectedPrice || courseData.selectedPlan?.price || "£0.00")
+                          ? (courseData.selectedRegistrationFee != null && Number(courseData.selectedRegistrationFee) >= 0
+                            ? `${courseData.selectedRegistrationFeeCurrency || "€"}${Number(courseData.selectedRegistrationFee).toFixed(2)}`
+                            : (courseData.selectedPrice || courseData.selectedPlan?.price || "£0.00"))
                           : "£0.00"}
                     </Typography>
                   </Box>

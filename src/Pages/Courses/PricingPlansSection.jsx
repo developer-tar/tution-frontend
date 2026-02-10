@@ -98,6 +98,8 @@ export default function PricingPlansSection({ data, filters }) {
                     duration,
                     price: details.price,
                     priceId: details.price_id,
+                    registrationFee: details.registration_fee != null ? details.registration_fee : null,
+                    currency: details.currency || '€',
                     savings: duration === '6 MONTHS' ? 'SAVING 30%' : '',
                     period: duration === 'MONTHLY' ? 'per month' : `for ${duration.toLowerCase()}`,
                     buttonText: duration === '6 MONTHS' ? 'FIXED PERIOD' : duration === 'MONTHLY' ? 'FLEXIBLE' : 'FIXED PERIOD'

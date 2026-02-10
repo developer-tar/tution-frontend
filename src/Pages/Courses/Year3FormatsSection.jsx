@@ -11,12 +11,16 @@ import {
     Snackbar,
     Alert
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addToCart, fetchCart } from '../../redux/slices/cartSlice';
 import { containerStyles, h2, spainColor } from '../style';
 
-export default function Year3FormatsSection({ data }) {
+export default function Year3FormatsSection({ data, subscribedCourseIds = [] }) {
     const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const courseId = data?.id;
+    const isSubscribed = courseId != null && subscribedCourseIds.some((id) => Number(id) === Number(courseId));
     const [addingToCart, setAddingToCart] = useState(false);
     const [snackbar, setSnackbar] = useState({
         open: false,
@@ -37,6 +41,8 @@ export default function Year3FormatsSection({ data }) {
             selectedDuration: format.duration,
             selectedPrice: format.price,
             selectedPriceId: format.priceId,
+            selectedRegistrationFee: format.registrationFee != null ? format.registrationFee : null,
+            selectedRegistrationFeeCurrency: format.currency || '€',
             timestamp: Date.now()
         };
 
@@ -185,10 +191,15 @@ export default function Year3FormatsSection({ data }) {
                         severity: 'success'
                     });
 
-                    // Navigate to signup page after a short delay
+                    // Navigate: logged-in -> basket (Place Order → Stripe); guest -> signup
                     setTimeout(() => {
-                        console.log('Navigating to signup page');
-                        window.location.href = '/signup';
+                        if (token) {
+                            console.log('User logged in, navigating to basket');
+                            navigate('/basket');
+                        } else {
+                            console.log('Guest user, navigating to signup');
+                            navigate('/signup');
+                        }
                     }, 1500);
                 } else {
                     console.error('❌ Failed to add to cart:', result.payload || result.error);
@@ -198,7 +209,9 @@ export default function Year3FormatsSection({ data }) {
                         severity: 'warning'
                     });
                     setTimeout(() => {
-                        window.location.href = '/signup';
+                        const t = localStorage.getItem('token');
+                        if (t) navigate('/basket');
+                        else navigate('/signup');
                     }, 1500);
                 }
             } catch (error) {
@@ -209,7 +222,9 @@ export default function Year3FormatsSection({ data }) {
                     severity: 'warning'
                 });
                 setTimeout(() => {
-                    window.location.href = '/signup';
+                    const t = localStorage.getItem('token');
+                    if (t) navigate('/basket');
+                    else navigate('/signup');
                 }, 1500);
             } finally {
                 setAddingToCart(false);
@@ -222,7 +237,9 @@ export default function Year3FormatsSection({ data }) {
                 severity: 'error'
             });
             setTimeout(() => {
-                window.location.href = '/signup';
+                const t = localStorage.getItem('token');
+                if (t) navigate('/basket');
+                else navigate('/signup');
             }, 1500);
         }
     };
@@ -279,6 +296,8 @@ export default function Year3FormatsSection({ data }) {
         const duration = pricing ? Object.keys(pricing)[0] : null;
         const firstPriceOption = pricing && duration ? pricing[duration] : null;
         const price = firstPriceOption ? firstPriceOption.price : '£1,465';
+        const registrationFee = firstPriceOption?.registration_fee != null ? firstPriceOption.registration_fee : null;
+        const currency = firstPriceOption?.currency || '€';
 
         // Get price_id - try to find a valid Stripe price ID (starts with 'price_')
         let priceId = null;
@@ -313,6 +332,8 @@ export default function Year3FormatsSection({ data }) {
             subtitle: mode === 'Online' ? 'Flexible Learning' : 'Max. class size of 9',
             headerBg: idx % 2 === 0 ? '#3944BC' : '#D6232A',
             price: price,
+            registrationFee: registrationFee,
+            currency: currency,
             features: modeFeatures,
             mode: mode,
             duration: duration,
@@ -373,7 +394,12 @@ export default function Year3FormatsSection({ data }) {
                                     <Typography sx={{ fontSize: '0.9rem', opacity: 0.95 }}>{f.title}</Typography>
                                 </Box>
                                 <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                                    <Typography sx={{ fontWeight: 800, fontSize: '3rem', color: f.headerBg, mb: 1 }}>{f.price}</Typography>
+                                    <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 0.5 }}>Registration fee</Typography>
+                                    <Typography sx={{ fontWeight: 800, fontSize: '3rem', color: f.headerBg, mb: 1 }}>
+                                        {f.registrationFee != null && Number(f.registrationFee) >= 0
+                                            ? `${f.currency}${Number(f.registrationFee).toFixed(2)}`
+                                            : '—'}
+                                    </Typography>
                                     <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 3 }}>{f.subtitle}</Typography>
                                     <Box sx={{ mb: 3 }}>
                                         {f.features.map((feature, i) => (
@@ -386,11 +412,22 @@ export default function Year3FormatsSection({ data }) {
                                     <Button
                                         variant="contained"
                                         size="large"
-                                        disabled={addingToCart}
-                                        onClick={() => handleRegisterClick(f)}
-                                        sx={{ bgcolor: f.headerBg, color: 'white', fontWeight: 700, px: 4, py: 1.5, borderRadius: 3, textTransform: 'uppercase', '&:hover': { bgcolor: f.headerBg, transform: 'translateY(-2px)' }, '&:disabled': { opacity: 0.7 } }}
+                                        disabled={addingToCart || isSubscribed}
+                                        onClick={() => !isSubscribed && handleRegisterClick(f)}
+                                        sx={{
+                                            bgcolor: isSubscribed ? '#2e7d32' : f.headerBg,
+                                            color: 'white',
+                                            fontWeight: 700,
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: 3,
+                                            textTransform: 'uppercase',
+                                            '&:hover': { bgcolor: isSubscribed ? '#2e7d32' : f.headerBg, transform: isSubscribed ? 'none' : 'translateY(-2px)' },
+                                            '&:disabled': { opacity: 0.7 },
+                                            cursor: isSubscribed ? 'default' : 'pointer',
+                                        }}
                                     >
-                                        {addingToCart ? 'Adding...' : 'Register Now'}
+                                        {addingToCart ? 'Adding...' : (isSubscribed ? 'Subscribed' : 'Register Now')}
                                     </Button>
                                 </CardContent>
                             </Card>

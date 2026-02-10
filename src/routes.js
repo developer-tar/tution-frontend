@@ -107,6 +107,8 @@ const routes = [
   { path: "/payment-cancel", element: <PaymentCancel /> },
   { path: "/paper/payment-success", element: <PaymentSuccess /> },
   { path: "/parent/paper/payment-success", element: <PaymentSuccess /> },
+  { path: "/parent/course/payment-success", element: <PaymentSuccess /> },
+  { path: "/parent/course/payment-cancel", element: <PaymentCancel /> },
 
   // Registration Success
   { path: "/registration-success", element: <RegistrationSuccess /> }

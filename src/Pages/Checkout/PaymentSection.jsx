@@ -129,7 +129,6 @@ export default function PaymentSection() {
   const navigate = useNavigate();
 
   const handlePlaceOrder = () => {
-    // Dummy redirect for order confirmation
     navigate("/order-confirmation?orderId=123456");
   };
 
