@@ -19,19 +19,17 @@ import LoadingProgress from '../components/LoadingProgress';
 const Course = () => {
   const { slug } = useParams();
   const [courseData, setCourseData] = useState(null);
-  // const [loading, setLoading] = useState(true); // Commented out - using global loading now
-  const [apiLoading, setApiLoading] = useState(true); // For API calls only
+  const [apiLoading, setApiLoading] = useState(true);
   const [filters, setFilters] = useState(null);
+  const [subscribedCourseIds, setSubscribedCourseIds] = useState([]);
+  const [subscribedPriceIds, setSubscribedPriceIds] = useState([]);
 
   useEffect(() => {
-    setApiLoading(true); // Reset loading state when slug changes
-    
+    setApiLoading(true);
+
     const fetchCourse = async () => {
-      const startTime = Date.now();
-      
       try {
-        const res = await api.get(`${slug}`); 
-        console.log('resdta',res.data);
+        const res = await api.get(`${slug}`);
         if (res.data.success && res.data.data.length > 0) {
           setCourseData(res.data.data[0]);
         } else {
@@ -41,7 +39,7 @@ const Course = () => {
         console.error("Error fetching course:", error);
         setCourseData(null);
       } finally {
-        setApiLoading(false); // API call finished
+        setApiLoading(false);
         // Commented out individual loading - now handled globally
         // const elapsedTime = Date.now() - startTime;
         // const minLoadingTime = 2000; // 2 seconds
@@ -57,6 +55,35 @@ const Course = () => {
     };
 
     fetchCourse();
+  }, [slug]);
+
+  // If parent is logged in, fetch subscribed course IDs and price IDs (per-row "Subscribed" in table)
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    const role = localStorage.getItem('role');
+    if (!token || role !== 'Parent') {
+      setSubscribedCourseIds([]);
+      setSubscribedPriceIds([]);
+      return;
+    }
+    const fetchSubscribedIds = async () => {
+      try {
+        const [courseRes, priceRes] = await Promise.all([
+          api.get('parent/subscribed-course-ids'),
+          api.get('parent/subscribed-price-ids'),
+        ]);
+        if (courseRes.data?.success && Array.isArray(courseRes.data?.data?.course_ids)) {
+          setSubscribedCourseIds(courseRes.data.data.course_ids);
+        }
+        if (priceRes.data?.success && Array.isArray(priceRes.data?.data?.price_ids)) {
+          setSubscribedPriceIds(priceRes.data.data.price_ids);
+        }
+      } catch {
+        setSubscribedCourseIds([]);
+        setSubscribedPriceIds([]);
+      }
+    };
+    fetchSubscribedIds();
   }, [slug]);
 
   // Commented out individual loading - now handled globally in App.js
@@ -130,8 +157,8 @@ const Course = () => {
       </Container>
 
       <PricingPlansSection data={courseData} filters={filters} />
-      <Year3FormatsSection data={courseData} />
-      <CourseListSection data={courseData} onFiltersChange={setFilters} />
+      <Year3FormatsSection data={courseData} subscribedCourseIds={subscribedCourseIds} />
+      <CourseListSection data={courseData} onFiltersChange={setFilters} subscribedCourseIds={subscribedCourseIds} subscribedPriceIds={subscribedPriceIds} />
       <ExamTypes />
       <CourseBenefitsSection />
     </Box>

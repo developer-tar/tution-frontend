@@ -21,14 +21,17 @@ import {
     Snackbar,
     Alert
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 import { containerStyles } from '../style';
 import api from '../../api';
 import { useDispatch } from 'react-redux';
 import { addToCart, fetchCart } from '../../redux/slices/cartSlice';
 
-export default function CourseListSection({ data, onFiltersChange }) {
+export default function CourseListSection({ data, onFiltersChange, subscribedCourseIds = [], subscribedPriceIds = [] }) {
     const dispatch = useDispatch();
-    const [addingToCart, setAddingToCart] = useState(false);
+    const navigate = useNavigate();
+    const courseId = data?.id;
+    const [addingPlanId, setAddingPlanId] = useState(null); // id of the single plan row being added (so only that button shows "Adding...")
     const [snackbar, setSnackbar] = useState({
         open: false,
         message: '',
@@ -36,35 +39,14 @@ export default function CourseListSection({ data, onFiltersChange }) {
     });
 
     const handleRegisterClick = async (course) => {
-        console.log('Register Now clicked for course:', course);
-        console.log('Course data:', data);
-
-        // Determine mode based on location
+        // Only this plan (row) is added to cart – one click = one plan. User can add other plans from same course separately.
         const isOnline = course.location?.toLowerCase() === 'online';
         const mode = isOnline ? 'Online' : 'In person';
 
-        // Get price_id from price_according_to_mode
-        let priceId = null;
-        let selectedDuration = null;
-        if (data.price_according_to_mode && data.price_according_to_mode[mode]) {
-            const modeData = data.price_according_to_mode[mode];
+        const priceId = course.priceId ?? (data.price_according_to_mode?.[mode]?.[course.duration]?.price_id) ?? null;
+        const selectedDuration = course.duration;
 
-            // Use the duration from the course object if available
-            if (course.duration && modeData[course.duration]) {
-                selectedDuration = course.duration;
-                priceId = modeData[course.duration].price_id;
-            } else {
-                // Fallback to first available duration
-                const firstDuration = Object.keys(modeData)[0];
-                if (firstDuration && modeData[firstDuration]) {
-                    selectedDuration = firstDuration;
-                    priceId = modeData[firstDuration].price_id;
-                }
-            }
-        }
-
-        // Store course data in localStorage for signup page
-        // Note: This does NOT clear the cart - cart items are preserved
+        // Store this plan's data for signup/checkout (single plan only)
         const cartData = {
             courseData: data,
             selectedCourse: course,
@@ -72,6 +54,8 @@ export default function CourseListSection({ data, onFiltersChange }) {
             courseSlug: data.slug,
             selectedLocation: course.location,
             selectedFee: course.fee,
+            selectedRegistrationFee: course.registrationFee != null ? course.registrationFee : null,
+            selectedRegistrationFeeCurrency: course.currency || '€',
             selectedDayTime: course.dayTime,
             selectedMode: mode,
             selectedDuration: selectedDuration || course.duration,
@@ -81,13 +65,11 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
 
-        // Add course to cart (always add, regardless of priceId - backend will handle it)
-        // Check for course ID - use data.id or try to get from course object
+        // Add only this plan to cart (product_id + price_id identify the plan; same course + different price_id = separate cart lines)
         const courseId = data?.id || course?.id || data?.course_id || course?.course_id;
 
         if (courseId) {
-            console.log('Adding course to cart, course ID:', courseId);
-            setAddingToCart(true);
+            setAddingPlanId(course.id);
             try {
                 // Check if user is logged in
                 const token = localStorage.getItem('token');
@@ -96,47 +78,50 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     product_type: "course",
                     product_id: courseId,
                     quantity: 1,
-                    price_id: priceId || null // Allow null price_id - backend will create it if needed
+                    price_id: priceId || null  // this plan only; different plans = different price_id = separate cart items
                 };
 
-                console.log('Cart payload:', payload);
-
                 if (!token) {
-                    // User is not logged in - add to guest cart
-                    console.log('User not logged in, adding to guest cart');
+                    // Guest cart: same course + same price_id = same line; different price_id = new line (another plan)
                     const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
                     const existingItem = guestCart.find(
-                        item => item.product_id === courseId && item.product_type === 'course'
+                        item => item.product_id === courseId && item.product_type === 'course' && (item.price_id || '') === (priceId || '')
                     );
 
                     if (existingItem) {
                         existingItem.quantity += 1;
-                        console.log('Course already in cart, incrementing quantity');
                     } else {
-                        // Parse price from fee string (e.g., "€50" -> 50)
+                        // Use registration fee for cart display (user only pays registration fee)
                         let coursePrice = 0;
-                        if (course.fee) {
+                        if (course.registrationFee != null && Number(course.registrationFee) >= 0) {
+                            coursePrice = Number(course.registrationFee);
+                        } else if (course.fee) {
                             const priceMatch = course.fee.toString().match(/[\d.]+/);
                             if (priceMatch) {
                                 coursePrice = parseFloat(priceMatch[0]);
                             }
                         }
 
+                        const regFeeDisplay = (course.registrationFee != null && Number(course.registrationFee) >= 0)
+                            ? `${course.currency || '€'}${Number(course.registrationFee).toFixed(2)}`
+                            : null;
                         const newCartItem = {
                             ...payload,
+                            price_id: priceId || null,
                             course_name: data.name,
                             course_image: data.image || '/assets/images/product-img.png',
                             course_price: coursePrice,
-                            course_fee: course.fee || '€0', // Keep original format for display
+                            course_fee: regFeeDisplay || course.fee || '€0',
+                            registration_fee: course.registrationFee,
+                            registration_fee_display: regFeeDisplay,
                             selectedMode: mode,
                             selectedDuration: selectedDuration || course.duration,
+                            course_duration: selectedDuration || course.duration,
                         };
                         guestCart.push(newCartItem);
-                        console.log('Added new course to guest cart:', newCartItem);
                     }
 
                     localStorage.setItem('guestCart', JSON.stringify(guestCart));
-                    console.log('Guest cart saved to localStorage:', guestCart);
 
                     // Trigger guest cart update event to refresh navbar and cart display
                     window.dispatchEvent(new Event('guestCartUpdated'));
@@ -147,34 +132,27 @@ export default function CourseListSection({ data, onFiltersChange }) {
                         newValue: JSON.stringify(guestCart)
                     }));
 
-                    // Show success message
+                    // Show success message (this plan only; user can add other plans from same course if needed)
                     setSnackbar({
                         open: true,
-                        message: 'Course added to cart successfully!',
+                        message: 'This plan has been added to your cart. You can add other plans from this course if needed.',
                         severity: 'success'
                     });
                 } else {
-                    // User is logged in - add to server cart
-                    console.log('User logged in, adding to server cart');
+                    // Logged in: add this plan only to server cart (DB)
                     const result = await dispatch(addToCart(payload));
-                    console.log('Add to cart result:', result);
 
                     if (addToCart.fulfilled.match(result)) {
-                        // Fetch updated cart to refresh navbar and cart display
                         await dispatch(fetchCart());
-
-                        // Trigger cart refresh in navbar
                         localStorage.setItem('cartUpdated', Date.now().toString());
                         window.dispatchEvent(new StorageEvent('storage', { key: 'cartUpdated' }));
                         window.dispatchEvent(new Event('cartUpdated'));
 
-                        // Show success message
                         setSnackbar({
                             open: true,
-                            message: 'Course added to cart successfully!',
+                            message: 'This plan has been added to your cart. You can add other plans from this course if needed.',
                             severity: 'success'
                         });
-                        console.log('Course successfully added to server cart');
                     } else {
                         console.error('Failed to add to cart:', result);
                         throw new Error(result.payload || 'Failed to add to cart');
@@ -182,28 +160,26 @@ export default function CourseListSection({ data, onFiltersChange }) {
                 }
             } catch (error) {
                 console.error('Error adding course to cart:', error);
-                // Show error message but continue to signup page
                 setSnackbar({
                     open: true,
                     message: 'Failed to add course to cart. You can still proceed.',
                     severity: 'warning'
                 });
             } finally {
-                setAddingToCart(false);
+                setAddingPlanId(null);
 
-                // Navigate to signup page after cart operation completes
+                // Navigate: logged-in -> basket (same as cart "Place Order" flow → Stripe); guest -> signup
                 setTimeout(() => {
-                    console.log('Navigating to signup page');
-                    // Verify cart was saved before navigating
                     const token = localStorage.getItem('token');
-                    if (!token) {
+                    if (token) {
+                        console.log('User logged in, navigating to basket (Place Order → Stripe)');
+                        navigate('/basket');
+                    } else {
+                        console.log('Guest user, navigating to signup');
                         const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
-                        console.log('Guest cart before navigation:', guestCart);
-                        if (guestCart.length === 0) {
-                            console.warn('Warning: Guest cart is empty before navigation');
-                        }
+                        if (guestCart.length === 0) console.warn('Warning: Guest cart is empty before navigation');
+                        navigate('/signup');
                     }
-                    window.location.href = '/signup';
                 }, 1500); // Delay to ensure cart is saved and user sees the message
             }
         } else {
@@ -212,7 +188,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
             console.log('Attempting to add to cart without ID...');
 
             // Still try to add to cart even without ID - backend might handle it
-            setAddingToCart(true);
+            setAddingPlanId(course.id);
             try {
                 const token = localStorage.getItem('token');
 
@@ -275,9 +251,11 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     severity: 'error'
                 });
             } finally {
-                setAddingToCart(false);
+                setAddingPlanId(null);
                 setTimeout(() => {
-                    window.location.href = '/signup';
+                    const token = localStorage.getItem('token');
+                    if (token) navigate('/basket');
+                    else navigate('/signup');
                 }, 1500);
             }
         }
@@ -311,7 +289,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
 
     useEffect(() => {
         fetchFilterOptions();
-        if (data && data.locations) {
+        if (data && (data.locations?.length || Object.keys(data.price_according_to_mode || {}).length)) {
             generateCourseList();
         }
     }, [data]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -349,10 +327,13 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     fallbackInstallments.push(duration);
                 });
             });
+            const baseLocations = extractValues(locationsRes, data.locations?.map(loc => loc.name) || []);
+            const modeNames = Object.keys(data.price_according_to_mode || {});
+            const locationsWithModes = [...new Set([...baseLocations, ...modeNames])];
 
             setFilterOptions({
                 formats: extractValues(formatsRes, data.modes),
-                locations: extractValues(locationsRes, data.locations?.map(loc => loc.name) || []),
+                locations: locationsWithModes,
                 days: extractValues(daysRes),
                 installments: extractValues(installmentsRes, [...new Set(fallbackInstallments)])
             });
@@ -366,9 +347,12 @@ export default function CourseListSection({ data, onFiltersChange }) {
                 });
             });
 
+            const baseLocations = data.locations?.map(loc => loc.name) || [];
+            const modeNames = Object.keys(data.price_according_to_mode || {});
+            const locationsWithModes = [...new Set([...baseLocations, ...modeNames])];
             setFilterOptions({
                 formats: data.modes || ['Online', 'In person'],
-                locations: data.locations?.map(loc => loc.name) || [],
+                locations: locationsWithModes,
                 days: ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'],
                 installments: [...new Set(fallbackInstallments)]
             });
@@ -388,12 +372,11 @@ export default function CourseListSection({ data, onFiltersChange }) {
     };
 
     const generateCourseList = () => {
-        if (!data.locations) return;
-        // setCourseListLoading(true); // Commented out - using global loading
+        if (!data) return;
         const courses = [];
         const isUpcomingCourse = isUpcoming(data.start_end_date);
 
-        data.locations.forEach(location => {
+        (data.locations || []).forEach(location => {
             const locationName = location.name || 'Unknown';
             const isOnline = locationName.toLowerCase() === 'online';
 
@@ -411,16 +394,23 @@ export default function CourseListSection({ data, onFiltersChange }) {
                         courses.push({
                             id: `${locationName}-${slot.class}-${slot.weekday}-${duration}`,
                             course: `${data.name || 'Year 3'}: ${slot.class.toUpperCase()} 2024`,
+                            plan: `${modeKey} - ${duration}`,
                             dayTime: `${slot.weekday}, ${slot.start_end_time}`,
                             location: locationName,
                             fee: priceData.price || price,
+                            registrationFee: priceData.registration_fee != null ? priceData.registration_fee : null,
+                            currency: priceData.currency || '€',
+                            totalAmount: priceData.total_amount != null ? priceData.total_amount : null,
+                            numberOfInstallments: priceData.number_of_installments != null ? priceData.number_of_installments : 1,
+                            eachInstallment: priceData.each_installment != null ? priceData.each_installment : null,
                             seatsLeft: slot.seat_left,
                             status: parseInt(slot.seat_left) > 0 ? 'Available' : 'Full',
                             isUpcoming: isUpcomingCourse,
                             startDate: data.start_end_date,
                             mode: modeKey,
                             duration: duration,
-                            weekday: slot.weekday
+                            weekday: slot.weekday,
+                            priceId: priceData.price_id || null
                         });
                     });
                 });
@@ -431,19 +421,59 @@ export default function CourseListSection({ data, onFiltersChange }) {
                     courses.push({
                         id: `${locationName}-flexible-${duration}`,
                         course: `${data.name || 'Year 3'}: FLEXIBLE TIMING`,
+                        plan: `${modeKey} - ${duration}`,
                         dayTime: 'Flexible Timing Available',
                         location: locationName,
                         fee: priceData.price || price,
+                        registrationFee: priceData.registration_fee != null ? priceData.registration_fee : null,
+                        currency: priceData.currency || '€',
+                        totalAmount: priceData.total_amount != null ? priceData.total_amount : null,
+                        numberOfInstallments: priceData.number_of_installments != null ? priceData.number_of_installments : 1,
+                        eachInstallment: priceData.each_installment != null ? priceData.each_installment : null,
                         seatsLeft: '5',
                         status: 'Available',
                         isUpcoming: isUpcomingCourse,
                         startDate: data.start_end_date,
                         mode: modeKey,
                         duration: duration,
-                        weekday: 'Flexible'
+                        weekday: 'Flexible',
+                        priceId: priceData.price_id || null
                     });
                 });
             }
+        });
+
+        // Ensure all plans from price_according_to_mode are shown (e.g. Online plans when there is no "Online" location)
+        const modesInLocations = [...new Set(courses.map(c => c.mode))];
+        const priceByMode = data.price_according_to_mode || {};
+        Object.keys(priceByMode).forEach((modeKey) => {
+            if (modesInLocations.includes(modeKey)) return;
+            const pricing = priceByMode[modeKey];
+            const price = Object.values(pricing)[0]?.price || '€0';
+            const allPricing = pricing || {};
+            Object.entries(allPricing).forEach(([duration, priceData]) => {
+                courses.push({
+                    id: `${modeKey}-plan-${duration}`,
+                    course: `${data.name || 'Year 3'}: ${modeKey.toUpperCase()}`,
+                    plan: `${modeKey} - ${duration}`,
+                    dayTime: 'Flexible Timing Available',
+                    location: modeKey,
+                    fee: priceData.price || price,
+                    registrationFee: priceData.registration_fee != null ? priceData.registration_fee : null,
+                    currency: priceData.currency || '€',
+                    totalAmount: priceData.total_amount != null ? priceData.total_amount : null,
+                    numberOfInstallments: priceData.number_of_installments != null ? priceData.number_of_installments : 1,
+                    eachInstallment: priceData.each_installment != null ? priceData.each_installment : null,
+                    seatsLeft: '5',
+                    status: 'Available',
+                    isUpcoming: isUpcomingCourse,
+                    startDate: data.start_end_date,
+                    mode: modeKey,
+                    duration: duration,
+                    weekday: 'Flexible',
+                    priceId: priceData.price_id || null
+                });
+            });
         });
 
         // Sort: upcoming first, then by date
@@ -487,7 +517,7 @@ export default function CourseListSection({ data, onFiltersChange }) {
         return formatMatch && locationMatch && daysMatch && installmentMatch;
     });
 
-    if (!data || !data.locations) {
+    if (!data) {
         return (
             <Box component="section" sx={{ bgcolor: '#fff', py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
@@ -558,16 +588,25 @@ export default function CourseListSection({ data, onFiltersChange }) {
                             <TableHead sx={{ bgcolor: '#f5f5f5' }}>
                                 <TableRow>
                                     <TableCell sx={{ fontWeight: 600 }}>Course</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Plan</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Day & Time</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Location</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Duration</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Registration Fee</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Total Amount</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>No. of Installments</TableCell>
+                                    <TableCell sx={{ fontWeight: 600 }}>Each Installment</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Fee</TableCell>
                                     <TableCell sx={{ fontWeight: 600 }}>Action</TableCell>
                                 </TableRow>
                             </TableHead>
                             <TableBody>
-                                {filteredCourses.map((course) => (
+                                {filteredCourses.map((course) => {
+                                    const isRowSubscribed = Array.isArray(subscribedPriceIds) && course.priceId && subscribedPriceIds.some(pid => String(pid) === String(course.priceId));
+                                    return (
                                     <TableRow key={course.id} hover>
                                         <TableCell>{course.course}</TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>{course.plan || '—'}</TableCell>
                                         <TableCell>{course.dayTime}</TableCell>
                                         <TableCell>
                                             <Chip
@@ -583,20 +622,51 @@ export default function CourseListSection({ data, onFiltersChange }) {
                                                 }}
                                             />
                                         </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>
+                                            {course.duration != null && course.duration !== ''
+                                                ? (() => {
+                                                    const d = String(course.duration).trim();
+                                                    const num = parseInt(d, 10);
+                                                    if (!Number.isNaN(num)) return num === 1 ? '1 month' : `${num} months`;
+                                                    return d.toLowerCase();
+                                                  })()
+                                                : '—'}
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>
+                                            {course.registrationFee != null && Number(course.registrationFee) >= 0
+                                                ? `${course.currency || '€'}${Number(course.registrationFee).toFixed(2)}`
+                                                : '—'}
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>
+                                            {course.totalAmount != null
+                                                ? `${course.currency || '€'}${Number(course.totalAmount).toFixed(2)}`
+                                                : course.fee}
+                                        </TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>{course.numberOfInstallments ?? '—'}</TableCell>
+                                        <TableCell sx={{ fontWeight: 500 }}>
+                                            {course.eachInstallment != null
+                                                ? `${course.currency || '€'}${Number(course.eachInstallment).toFixed(2)}`
+                                                : '—'}
+                                        </TableCell>
                                         <TableCell sx={{ fontWeight: 600 }}>{course.fee}</TableCell>
                                         <TableCell>
                                             <Button
                                                 variant="contained"
                                                 size="small"
-                                                disabled={course.status === 'Full' || addingToCart}
-                                                onClick={() => handleRegisterClick(course)}
-                                                sx={{ bgcolor: '#1976d2', '&:hover': { bgcolor: '#1565c0' } }}
+                                                disabled={course.status === 'Full' || addingPlanId === course.id || isRowSubscribed}
+                                                onClick={() => !isRowSubscribed && handleRegisterClick(course)}
+                                                sx={{
+                                                    bgcolor: isRowSubscribed ? '#2e7d32' : '#1976d2',
+                                                    '&:hover': { bgcolor: isRowSubscribed ? '#2e7d32' : '#1565c0' },
+                                                    cursor: isRowSubscribed ? 'default' : 'pointer',
+                                                }}
                                             >
-                                                {addingToCart ? 'Adding...' : (course.status === 'Full' ? 'Full' : 'Register Now')}
+                                                {addingPlanId === course.id ? 'Adding...' : (isRowSubscribed ? 'Subscribed' : (course.status === 'Full' ? 'Full' : 'Register Now'))}
                                             </Button>
                                         </TableCell>
                                     </TableRow>
-                                ))}
+                                    );
+                                })}
                             </TableBody>
                         </Table>
                     </TableContainer>

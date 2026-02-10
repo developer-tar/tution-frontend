@@ -65,6 +65,15 @@ export default function CourseContent({ data }) {
             <ArrowForwardIcon sx={{ fontSize: 20, color: '#EF2A1E' }} />
           </Box>
         </Button>
+
+        <Box sx={{ mt: 4, p: 2, bgcolor: '#f5f5f5', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 1 }}>
+            Registration fee details
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+            A one-off, non-refundable registration fee may apply when you register for this course. The registration fee (if any) is shown on each course format and pricing option below. It is charged once per enrolment and is separate from the course fee.
+          </Typography>
+        </Box>
       </Container>
     </Box>
   );
