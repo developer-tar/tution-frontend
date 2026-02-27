@@ -18,8 +18,11 @@ import CloseIcon from '@mui/icons-material/Close';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
 import api from '../api';
+import { useDispatch } from 'react-redux';
+import { addToCart, fetchCart } from '../redux/slices/cartSlice';
 
 const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
+  const dispatch = useDispatch();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -29,6 +32,43 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
   const [error, setError] = useState('');
   const [parentRoleId, setParentRoleId] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Sync guest cart to server
+  const syncGuestCartToServer = async () => {
+    try {
+      const guestCart = localStorage.getItem('guestCart');
+      if (!guestCart) return;
+
+      const guestCartItems = JSON.parse(guestCart);
+      if (guestCartItems.length === 0) return;
+
+      // Add each item from guest cart to server cart
+      for (const item of guestCartItems) {
+        try {
+          await dispatch(addToCart({
+            product_type: item.product_type,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price_id: item.price_id,
+          })).unwrap();
+        } catch (error) {
+          console.error('Error adding item to cart:', error);
+        }
+      }
+
+      // Clear guest cart after successful sync
+      localStorage.removeItem('guestCart');
+
+      // Fetch updated cart
+      await dispatch(fetchCart());
+
+      // Trigger event to update navbar and other components
+      window.dispatchEvent(new Event('guestCartUpdated'));
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error syncing guest cart:', error);
+    }
+  };
 
   // Fetch parent role ID from roles API
   useEffect(() => {
@@ -69,7 +109,7 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
       setError('Email and password are required');
       return false;
     }
-    
+
     // Basic email validation
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailRegex.test(formData.email)) {
@@ -82,7 +122,7 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) return;
 
     setLoading(true);
@@ -90,7 +130,7 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
 
     try {
       const response = await api.post('/login', formData);
-      
+
       if (response.data.success) {
         // Store token in localStorage using new response format
         if (response.data.data?.access_token) {
@@ -99,10 +139,13 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
           // localStorage.setItem('userName', response.data.data.full_name || formData.email.split('@')[0]);
           localStorage.setItem('userData', JSON.stringify(response.data.data));
         }
-        
+
+        // Sync guest cart to server after login
+        await syncGuestCartToServer();
+
         onSuccess && onSuccess(response.data);
         onClose();
-        
+
         // Reset form
         setFormData({
           email: '',
@@ -114,7 +157,7 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      
+
       // Handle different types of errors
       if (error.response?.data?.message) {
         setError(error.response.data.message);
@@ -150,8 +193,8 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
   };
 
   return (
-    <Dialog 
-      open={open} 
+    <Dialog
+      open={open}
       onClose={handleClose}
       maxWidth="sm"
       fullWidth
@@ -162,13 +205,13 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
         }
       }}
     >
-      <DialogTitle sx={{ 
-        display: 'flex', 
-        justifyContent: 'space-between', 
+      <DialogTitle sx={{
+        display: 'flex',
+        justifyContent: 'space-between',
         alignItems: 'center',
         pb: 1
       }}>
-        <Typography variant="h6" sx={{ fontWeight: 600, color: '#1f2937' }}>
+        <Typography component="div" variant="h6" sx={{ fontWeight: 600, color: '#1f2937' }}>
           Parent Login
         </Typography>
         <IconButton onClick={handleClose} disabled={loading}>
@@ -233,8 +276,8 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
                 component="button"
                 type="button"
                 onClick={handleSwitchToRegister}
-                sx={{ 
-                  color: '#7b1fa2', 
+                sx={{
+                  color: '#7b1fa2',
                   textDecoration: 'none',
                   fontWeight: 600,
                   '&:hover': {
@@ -250,8 +293,8 @@ const ParentLoginModal = ({ open, onClose, onSuccess, onSwitchToRegister }) => {
         </DialogContent>
 
         <DialogActions sx={{ px: 3, pb: 2 }}>
-          <Button 
-            onClick={handleClose} 
+          <Button
+            onClick={handleClose}
             disabled={loading}
             sx={{ textTransform: 'none' }}
           >

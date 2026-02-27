@@ -11,35 +11,141 @@ import {
 // Note: Using custom toast notification instead of Snackbar to avoid import issues
 // ESLint cache refresh comment
 import { useDispatch, useSelector } from "react-redux";
-import { fetchCart, updateCartItem, deleteCartItem } from "../../redux/slices/cartSlice";
+import { fetchCart, updateCartItem, deleteCartItem, addToCart } from "../../redux/slices/cartSlice";
 import DeleteIcon from "@mui/icons-material/Delete";
 import AddIcon from "@mui/icons-material/Add";
 import RemoveIcon from "@mui/icons-material/Remove";
 import ShoppingCartIcon from "@mui/icons-material/ShoppingCart";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../../api";
 
-// Lazy load the modals to avoid initialization issues
-const ParentRegistrationModal = React.lazy(() => import("../../Components/ParentRegistrationModal"));
-const ParentLoginModal = React.lazy(() => import("../../Components/ParentLoginModal"));
+// Lazy load the login modal
+const ParentLoginModal = React.lazy(() => import("../../components/ParentLoginModal"));
 
 // Fixed: Removed Snackbar/Alert imports to resolve ESLint errors
 export default function YourBasket() {
+  const navigate = useNavigate();
   const dispatch = useDispatch();
   const { items, loading } = useSelector((state) => state.cart);
   const [updatingItems, setUpdatingItems] = useState(new Set());
-  const [showRegistrationModal, setShowRegistrationModal] = useState(false);
   const [showLoginModal, setShowLoginModal] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [guestCartItems, setGuestCartItems] = useState([]);
   const [snackbar, setSnackbar] = useState({
     open: false,
     message: '',
     severity: 'success' // success, error, warning, info
   });
 
-  useEffect(() => {
-    dispatch(fetchCart());
+  // Get guest cart from localStorage
+  const getGuestCart = () => {
+    try {
+      const guestCart = localStorage.getItem('guestCart');
+      return guestCart ? JSON.parse(guestCart) : [];
+    } catch (error) {
+      console.error('Error reading guest cart:', error);
+      return [];
+    }
+  };
+
+  // Remove from guest cart (for courses, match by product_id + price_id so each row is separate)
+  const removeFromGuestCart = (productId, priceId) => {
+    const guestCart = getGuestCart();
+    const updatedCart = guestCart.filter(item => {
+      if (item.product_id !== productId) return true;
+      if (priceId != null && priceId !== '') return item.price_id !== priceId;
+      return false;
+    });
+    localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+    setGuestCartItems(updatedCart);
+    window.dispatchEvent(new Event('guestCartUpdated'));
+  };
+
+  // Update guest cart quantity (for courses, match by product_id + price_id)
+  const updateGuestCartQuantity = (productId, quantity, priceId) => {
+    if (quantity < 1) {
+      removeFromGuestCart(productId, priceId);
+      return;
+    }
+    const guestCart = getGuestCart();
+    const updatedCart = guestCart.map(item => {
+      const match = item.product_id === productId && (priceId == null || priceId === '' || item.price_id === priceId);
+      return match ? { ...item, quantity } : item;
+    });
+    localStorage.setItem('guestCart', JSON.stringify(updatedCart));
+    setGuestCartItems(updatedCart);
+    window.dispatchEvent(new Event('guestCartUpdated'));
+  };
+
+  // Sync guest cart to server
+  const syncGuestCartToServer = React.useCallback(async () => {
+    try {
+      const guestCart = getGuestCart();
+      if (guestCart.length === 0) return;
+
+      // Add each item from guest cart to server cart
+      for (const item of guestCart) {
+        try {
+          await dispatch(addToCart({
+            product_type: item.product_type,
+            product_id: item.product_id,
+            quantity: item.quantity,
+            price_id: item.price_id,
+          })).unwrap();
+        } catch (error) {
+          console.error('Error adding item to cart:', error);
+        }
+      }
+
+      // Clear guest cart after successful sync
+      localStorage.removeItem('guestCart');
+
+      // Fetch updated cart
+      await dispatch(fetchCart());
+
+      // Update guest cart items state
+      setGuestCartItems([]);
+
+      // Trigger event to update navbar and other components
+      window.dispatchEvent(new Event('guestCartUpdated'));
+      window.dispatchEvent(new Event('cartUpdated'));
+    } catch (error) {
+      console.error('Error syncing guest cart:', error);
+    }
   }, [dispatch]);
+
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      // User is logged in - sync guest cart first, then fetch server cart
+      syncGuestCartToServer().then(() => {
+        dispatch(fetchCart());
+      });
+    } else {
+      // User is not logged in - load guest cart
+      const guestCart = getGuestCart();
+      setGuestCartItems(guestCart);
+    }
+  }, [dispatch, syncGuestCartToServer]);
+
+  // Listen for guest cart updates
+  useEffect(() => {
+    const handleGuestCartUpdate = () => {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        const guestCart = getGuestCart();
+        setGuestCartItems(guestCart);
+      }
+    };
+
+    window.addEventListener('guestCartUpdated', handleGuestCartUpdate);
+    window.addEventListener('storage', handleGuestCartUpdate);
+
+    return () => {
+      window.removeEventListener('guestCartUpdated', handleGuestCartUpdate);
+      window.removeEventListener('storage', handleGuestCartUpdate);
+    };
+  }, []);
 
   // Helper functions for toast messages
   const showToast = (message, severity = 'success') => {
@@ -66,10 +172,10 @@ export default function YourBasket() {
 
   const handleQuantityChange = async (cart_id, quantity) => {
     if (quantity < 1) return;
-    
+
     setUpdatingItems(prev => new Set(prev).add(cart_id));
     const item = items.find(i => i.id === cart_id);
-    
+
     try {
       await dispatch(updateCartItem({ cart_id, quantity, price: item?.price || 0 }));
     } catch (error) {
@@ -92,123 +198,140 @@ export default function YourBasket() {
       });
   };
 
-  const totalAmount = !loading
-    ? items?.reduce((sum, item) => sum + item.total, 0)
-    : 0;
-
-  // Check if parent is logged in
-  const isParentLoggedIn = () => {
-
+  // Get display items (server cart or guest cart)
+  const displayItems = React.useMemo(() => {
     const token = localStorage.getItem('token');
-    const userRole = localStorage.getItem('role');
-    return token && userRole === 'Parent';
+    if (token) {
+      // User is logged in - use server cart
+      return items.map(item => {
+        const nameWithDuration = item.course_duration ? `${item.name} – ${item.course_duration}` : item.name;
+        return {
+          id: item.id,
+          name: nameWithDuration,
+          image: item.image,
+          price: parseFloat(item.price) || 0,
+          quantity: parseInt(item.quantity) || 1,
+          total: parseFloat(item.total) || 0,
+          isGuest: false,
+          product_type: item.product_type || null,
+          registration_fee_display: item.registration_fee_display || null
+        };
+      });
+    } else {
+      // User is not logged in - use guest cart
+      return guestCartItems.map((item, index) => {
+        const duration = item.course_duration || item.selectedDuration;
+        const durationLabel = duration ? (() => {
+          const d = String(duration).trim();
+          const num = parseInt(d, 10);
+          if (!Number.isNaN(num)) return num === 1 ? '1 month' : `${num} months`;
+          return d;
+        })() : '';
+        const itemName = item.paper_name || (item.course_name ? (durationLabel ? `${item.course_name} – ${durationLabel}` : item.course_name) : `${item.product_type} ${item.product_id}`);
+        const itemImage = item.paper_image || item.course_image || "https://via.placeholder.com/50";
+        const itemPrice = parseFloat(item.paper_price) || parseFloat(item.course_price) || 0;
+        const quantity = parseInt(item.quantity) || 1;
+        const total = itemPrice * quantity;
+
+        return {
+          id: `guest-${item.product_id}-${item.price_id || ''}-${index}`,
+          name: itemName,
+          image: itemImage,
+          price: itemPrice,
+          quantity: quantity,
+          total: total,
+          isGuest: true,
+          product_id: item.product_id,
+          price_id: item.price_id || null,
+          product_type: item.product_type,
+          registration_fee_display: item.registration_fee_display || null
+        };
+      });
+    }
+  }, [items, guestCartItems]);
+
+  const totalAmount = displayItems.reduce((sum, item) => sum + (parseFloat(item.total) || 0), 0);
+
+  const isParentLoggedIn = () => {
+    const token = localStorage.getItem('token');
+    const userRole = localStorage.getItem('role') || '';
+    return !!(token && userRole === 'Parent');
   };
 
   const handlePlaceOrder = async () => {
-    
-    // Check if parent is logged in
+
+    // Guest: show login so they can then go to Stripe. Logged-in: redirect to Stripe payment gateway
     if (!isParentLoggedIn()) {
-      
-      setShowLoginModal(true); // Show login modal first
+      setShowLoginModal(true);
       return;
     }
 
-    // User is logged in, proceed with subscription checkout
-    try {
-      // Collect all price_ids from cart items
-      const priceIds = items.map(item => item.price_id).filter(Boolean);
-      console.log('Place Order with price_ids:', priceIds);
-      
-      // Prepare payload for subscription checkout
-      const checkoutPayload = {
-        price_ids: priceIds,
-        // Add any other required fields here
-      };
+    await dispatch(fetchCart());
+    await new Promise(resolve => setTimeout(resolve, 300));
 
-      setCheckoutLoading(true); // Show loading state
-      
-      // Hit subscription-checkout API
+    if (!items || items.length === 0) {
+      showToast('Your cart is empty. Please add items to your cart first.', 'error');
+      return;
+    }
+
+    setCheckoutLoading(true);
+    try {
       const response = await api.post('/parent/checkout');
-      
       if (response.data.success) {
-        console.log('Checkout successful:', response.data);
-        
-        // Check if there's a redirect link in response
-        if (response?.data?.message?.url) {
-          // Redirect to payment gateway
-          window.location.href = response.data.message.url;
-        } else {
-          // If no redirect URL, show success message
-          showToast('Order placed successfully!', 'success');
+        const checkoutUrl = response.data?.data?.url ?? response.data?.message?.url ?? response.data?.url;
+        if (checkoutUrl) {
+          window.location.href = checkoutUrl;
+          return;
         }
+        showToast('Order placed successfully!', 'success');
       } else {
-        showToast('Failed to process order. Please try again.', 'error');
+        showToast(response.data?.message || 'Failed to process order.', 'error');
       }
     } catch (error) {
-      console.error('Checkout error:', error);
-      console.error('Error response data:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      
-      // Handle different types of errors
-      let errorMessage = '';
-      
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      } else if (error.response?.status === 404) {
-        errorMessage = 'Checkout service not available. Please try again later.';
-      } else if (error.response?.status >= 400) {
-        errorMessage = `Server error (${error.response.status}). Please try again.`;
-      } else {
-        errorMessage = 'Failed to process order. Please try again.';
-      }
-      
-      // Show error toast with proper styling
+      const errorMessage = error.response?.data?.data?.error
+        || error.response?.data?.message
+        || 'Failed to process order. Please try again.';
       showToast(errorMessage, 'error');
     } finally {
       setCheckoutLoading(false);
     }
   };
 
-  const handleLoginSuccess = (userData) => {
+  const handleLoginSuccess = async (userData) => {
     console.log('Login successful:', userData);
-    // Close all modals immediately
+    // Close login modal
     setShowLoginModal(false);
-    setShowRegistrationModal(false);
-    
+
+    // Sync guest cart to server after login
+    await syncGuestCartToServer();
+
+    // Wait for cart to be fetched and updated in Redux state
+    await dispatch(fetchCart());
+
     // Force navbar to update by triggering a re-render
     window.dispatchEvent(new Event('storage'));
-    
-    // After successful login, proceed with order
+    window.dispatchEvent(new Event('cartUpdated'));
+
+    // After successful login and cart sync, proceed with order
+    // Give a small delay to ensure state is updated
     setTimeout(() => {
       handlePlaceOrder();
-    }, 500);
-  };
-
-  const handleRegistrationSuccess = (userData) => {
-    console.log('Registration successful:', userData);
-    // Registration doesn't automatically log in user
-    // The registration modal will handle switching to login modal
+    }, 1000);
   };
 
   const handleSwitchToRegister = () => {
     setShowLoginModal(false);
-    setShowRegistrationModal(true);
-  };
-
-  const handleSwitchToLogin = () => {
-    setShowRegistrationModal(false);
-    setShowLoginModal(true);
+    // Navigate to signup page instead of opening modal
+    navigate('/signup');
   };
 
   return (
     <Grid container spacing={4} sx={{ p: 4 }}>
       <Grid item xs={12} md={8}>
-        {loading ? (
+        {loading && localStorage.getItem('token') ? (
           <CircularProgress />
-        ) : items && items.length > 0 ? (
-          items.map((item) => (
+        ) : displayItems && displayItems.length > 0 ? (
+          displayItems.map((item) => (
             <Box
               key={item.id}
               display="flex"
@@ -232,15 +355,27 @@ export default function YourBasket() {
               <Typography>£{item.price.toFixed(2)}</Typography>
 
               <Box display="flex" alignItems="center" gap={1}>
-                <IconButton 
-                  onClick={() => handleQuantityChange(item.id, item.quantity - 1)}
+                <IconButton
+                  onClick={() => {
+                    if (item.isGuest) {
+                      updateGuestCartQuantity(item.product_id, item.quantity - 1, item.price_id);
+                    } else {
+                      handleQuantityChange(item.id, item.quantity - 1);
+                    }
+                  }}
                   disabled={updatingItems.has(item.id)}
                 >
                   <RemoveIcon />
                 </IconButton>
                 <Typography>{item.quantity}</Typography>
-                <IconButton 
-                  onClick={() => handleQuantityChange(item.id, item.quantity + 1)}
+                <IconButton
+                  onClick={() => {
+                    if (item.isGuest) {
+                      updateGuestCartQuantity(item.product_id, item.quantity + 1, item.price_id);
+                    } else {
+                      handleQuantityChange(item.id, item.quantity + 1);
+                    }
+                  }}
                   disabled={updatingItems.has(item.id)}
                 >
                   <AddIcon />
@@ -249,26 +384,35 @@ export default function YourBasket() {
 
               <Typography>£{item.total.toFixed(2)}</Typography>
 
-              <IconButton onClick={() => handleDelete(item.id)} color="error">
+              <IconButton
+onClick={() => {
+                    if (item.isGuest) {
+                      removeFromGuestCart(item.product_id, item.price_id);
+                    } else {
+                      handleDelete(item.id);
+                    }
+                  }}
+                color="error"
+              >
                 <DeleteIcon />
               </IconButton>
             </Box>
           ))
         ) : (
-          <Box 
-            sx={{ 
-              display: 'flex', 
-              flexDirection: 'column', 
-              alignItems: 'center', 
+          <Box
+            sx={{
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
               justifyContent: 'center',
               py: 8,
               textAlign: 'center'
             }}
           >
-            <ShoppingCartIcon 
-              sx={{ 
-                fontSize: 80, 
-                color: '#e0e0e0', 
+            <ShoppingCartIcon
+              sx={{
+                fontSize: 80,
+                color: '#e0e0e0',
                 mb: 2,
                 animation: 'bounce 2s infinite',
                 '@keyframes bounce': {
@@ -282,23 +426,23 @@ export default function YourBasket() {
                     transform: 'translateY(-5px)'
                   }
                 }
-              }} 
+              }}
             />
-            <Typography 
-              variant="h5" 
-              sx={{ 
-                color: '#9e9e9e', 
-                fontWeight: 500, 
-                mb: 1 
+            <Typography
+              variant="h5"
+              sx={{
+                color: '#9e9e9e',
+                fontWeight: 500,
+                mb: 1
               }}
             >
               Your cart is empty
             </Typography>
-            <Typography 
-              variant="body2" 
-              sx={{ 
-                color: '#bdbdbd', 
-                mb: 3 
+            <Typography
+              variant="body2"
+              sx={{
+                color: '#bdbdbd',
+                mb: 3
               }}
             >
               Looks like you haven't added any courses yet
@@ -321,7 +465,7 @@ export default function YourBasket() {
                 }
               }}
             >
-              Browse 
+              Browse
             </Button>
           </Box>
         )}
@@ -358,10 +502,10 @@ export default function YourBasket() {
           </Box>
 
           {/* Dynamic Product List from Cart */}
-          {loading ? (
+          {loading && localStorage.getItem('token') ? (
             <Typography>Loading...</Typography>
-          ) : items && items.length > 0 ? (
-            items.map((item) => (
+          ) : displayItems && displayItems.length > 0 ? (
+            displayItems.map((item) => (
               <Box
                 key={item.id}
                 sx={{
@@ -374,9 +518,6 @@ export default function YourBasket() {
               >
                 <Box>
                   <Typography sx={{ fontWeight: 500 }}>{item.name} × {item.quantity}</Typography>
-                  <Typography sx={{ fontSize: "12px", color: "#6b7280" }}>
-                   
-                  </Typography>
                 </Box>
                 <Typography sx={{ fontWeight: 600 }}>£{item.total.toFixed(2)}</Typography>
               </Box>
@@ -408,7 +549,7 @@ export default function YourBasket() {
           </Box>
 
           {/* Coupon Section */}
-        
+
 
           {/* Place Order Button */}
           <Button
@@ -423,7 +564,7 @@ export default function YourBasket() {
               fontWeight: "bold",
               padding: "12px 0",
             }}
-            disabled={loading || items.length === 0 || checkoutLoading}
+            disabled={loading || displayItems.length === 0 || checkoutLoading}
           >
             {checkoutLoading ? (
               <CircularProgress size={20} color="inherit" />
@@ -488,17 +629,6 @@ export default function YourBasket() {
         </Suspense>
       )}
 
-      {/* Parent Registration Modal */}
-      {showRegistrationModal && (
-        <Suspense fallback={<CircularProgress />}>
-          <ParentRegistrationModal
-            open={showRegistrationModal}
-            onClose={() => setShowRegistrationModal(false)}
-            onSuccess={handleRegistrationSuccess}
-            onSwitchToLogin={handleSwitchToLogin}
-          />
-        </Suspense>
-      )}
 
       {/* Custom Toast Notifications */}
       {snackbar.open && (
@@ -534,9 +664,9 @@ export default function YourBasket() {
             <Button
               size="small"
               onClick={handleCloseSnackbar}
-              sx={{ 
-                color: 'white', 
-                p: 0.5, 
+              sx={{
+                color: 'white',
+                p: 0.5,
                 minWidth: 'auto',
                 '&:hover': { bgcolor: 'rgba(255,255,255,0.1)' }
               }}

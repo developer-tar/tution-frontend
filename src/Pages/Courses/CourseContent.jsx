@@ -12,36 +12,10 @@ export default function CourseContent({ data }) {
     return (
       <Box sx={{ py: 4 }}>
         <Container sx={containerStyles}>
-          {/* Loading Progress Bar */}
-          <LinearProgress 
-            sx={{ 
-              height: 3,
-              backgroundColor: '#e3f2fd',
-              mb: 3,
-              '& .MuiLinearProgress-bar': {
-                backgroundColor: '#1976d2'
-              }
-            }} 
-          />
-          {/* Commented out gradient version */}
-          {/* 
-          <LinearProgress 
-            sx={{ 
-              height: 3,
-              backgroundColor: '#f0f0f0',
-              mb: 3,
-              '& .MuiLinearProgress-bar': {
-                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-              }
-            }} 
-          />
-          */}
-          <Typography variant="h6">Loading course details...</Typography>
+          <Typography variant="h6">Course content unavailable</Typography>
           <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-            Please wait while we fetch the course content
+            Course details are not available at the moment. Please try again later.
           </Typography>
-          {/* Commented out original loading message */}
-          {/* <Typography variant="h6">Loading course details...</Typography> */}
         </Container>
       </Box>
     );
@@ -91,6 +65,15 @@ export default function CourseContent({ data }) {
             <ArrowForwardIcon sx={{ fontSize: 20, color: '#EF2A1E' }} />
           </Box>
         </Button>
+
+        <Box sx={{ mt: 4, p: 2, bgcolor: '#f5f5f5', borderRadius: 2, border: '1px solid #e0e0e0' }}>
+          <Typography variant="h6" sx={{ fontWeight: 600, fontSize: '1rem', mb: 1 }}>
+            Registration fee details
+          </Typography>
+          <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.6 }}>
+            A one-off, non-refundable registration fee may apply when you register for this course. The registration fee (if any) is shown on each course format and pricing option below. It is charged once per enrolment and is separate from the course fee.
+          </Typography>
+        </Box>
       </Container>
     </Box>
   );

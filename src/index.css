@@ -1,0 +1,22 @@
+/* Force all MUI dropdowns to the highest layer */
+.MuiPopover-root,
+.MuiMenu-root {
+  z-index: 99999 !important;
+}
+
+/* Ensure MUI Paper inside menu also stays on top */
+.MuiMenu-paper,
+.MuiPaper-root.MuiMenu-paper {
+  z-index: 99999 !important;
+}
+
+/* Prevent header/hero from overlapping */
+header,
+.hero,
+.hero-section,
+.banner,
+.main-banner,
+.top-section {
+  position: relative !important;
+  z-index: 1 !important;
+}

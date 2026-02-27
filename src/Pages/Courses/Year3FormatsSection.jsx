@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
     Box,
     Grid,
@@ -8,13 +8,31 @@ import {
     CardContent,
     Container,
     LinearProgress,
+    Snackbar,
+    Alert
 } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { addToCart, fetchCart } from '../../redux/slices/cartSlice';
 import { containerStyles, h2, spainColor } from '../style';
 
-export default function Year3FormatsSection({ data }) {
+export default function Year3FormatsSection({ data, subscribedCourseIds = [] }) {
+    const dispatch = useDispatch();
+    const navigate = useNavigate();
+    const courseId = data?.id;
+    const isSubscribed = courseId != null && subscribedCourseIds.some((id) => Number(id) === Number(courseId));
+    const [addingToCart, setAddingToCart] = useState(false);
+    const [snackbar, setSnackbar] = useState({
+        open: false,
+        message: '',
+        severity: 'success'
+    });
 
-    const handleRegisterClick = (format) => {
-        // Store course data in localStorage for add-to-cart page
+    const handleRegisterClick = async (format) => {
+        console.log('Register Now clicked for format:', format);
+        console.log('Course data:', data);
+
+        // Store course data in localStorage for signup page
         const cartData = {
             courseData: data,
             courseName: data.name,
@@ -23,54 +41,248 @@ export default function Year3FormatsSection({ data }) {
             selectedDuration: format.duration,
             selectedPrice: format.price,
             selectedPriceId: format.priceId,
+            selectedRegistrationFee: format.registrationFee != null ? format.registrationFee : null,
+            selectedRegistrationFeeCurrency: format.currency || '€',
             timestamp: Date.now()
         };
 
         localStorage.setItem('courseCartData', JSON.stringify(cartData));
+        console.log('Course data saved to localStorage:', cartData);
 
-        // Navigate to add-to-cart page
-        window.location.href = '/add-to-cart';
+        // Get course ID
+        const courseId = data?.id || data?.course_id;
+        console.log('Course ID found:', courseId);
+        console.log('Format priceId:', format.priceId);
+        console.log('Price according to mode:', data.price_according_to_mode);
+
+        // Try to get a valid price_id if format.priceId is null or invalid
+        let priceId = format.priceId;
+        if (!priceId || (typeof priceId === 'string' && !priceId.startsWith('price_'))) {
+            console.log('Price ID is null or invalid, trying to find valid one...');
+            // Try to get from price_according_to_mode structure
+            if (data.price_according_to_mode && format.mode) {
+                const modeData = data.price_according_to_mode[format.mode];
+                if (modeData) {
+                    // Try selected duration first
+                    if (format.duration && modeData[format.duration]?.price_id) {
+                        const rawPriceId = modeData[format.duration].price_id;
+                        if (rawPriceId && typeof rawPriceId === 'string' && rawPriceId.startsWith('price_')) {
+                            priceId = rawPriceId;
+                            console.log('Found valid price_id from selected duration:', priceId);
+                        }
+                    }
+
+                    // If still not found, try all durations
+                    if (!priceId || !priceId.startsWith('price_')) {
+                        for (const durationKey of Object.keys(modeData)) {
+                            const rawPriceId = modeData[durationKey]?.price_id;
+                            if (rawPriceId && typeof rawPriceId === 'string' && rawPriceId.startsWith('price_')) {
+                                priceId = rawPriceId;
+                                console.log('Found valid price_id from duration:', durationKey, priceId);
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        console.log('Final price_id to use:', priceId);
+        console.log('Is price_id valid?', priceId && typeof priceId === 'string' && priceId.startsWith('price_'));
+
+        if (!priceId || (typeof priceId === 'string' && !priceId.startsWith('price_'))) {
+            console.error('❌ No valid Stripe price_id found!');
+            console.error('Available price data:', {
+                formatPriceId: format.priceId,
+                mode: format.mode,
+                duration: format.duration,
+                priceAccordingToMode: data.price_according_to_mode
+            });
+            setSnackbar({
+                open: true,
+                message: 'Price information is missing. Please contact support.',
+                severity: 'error'
+            });
+            setAddingToCart(false);
+            return;
+        }
+
+        if (courseId) {
+            console.log('Adding course to cart, course ID:', courseId);
+            setAddingToCart(true);
+            try {
+                const token = localStorage.getItem('token');
+                const payload = {
+                    product_type: "course",
+                    product_id: courseId,
+                    quantity: 1,
+                    price_id: priceId
+                };
+
+                console.log('Cart payload:', payload);
+                console.log('User token exists:', !!token);
+                console.log('Calling API: POST /api/cart/add');
+
+                // Call API for both logged-in and guest users
+                const result = await dispatch(addToCart(payload));
+                console.log('Add to cart API response:', result);
+
+                if (addToCart.fulfilled.match(result)) {
+                    console.log('✅ Course added to cart successfully via API');
+
+                    if (token) {
+                        // Logged-in user: fetch updated cart from server
+                        console.log('Fetching updated cart from server...');
+                        await dispatch(fetchCart());
+                        localStorage.setItem('cartUpdated', Date.now().toString());
+                        window.dispatchEvent(new StorageEvent('storage', { key: 'cartUpdated' }));
+                        window.dispatchEvent(new Event('cartUpdated'));
+                        console.log('✅ Cart updated and synced');
+                    } else {
+                        // Guest user: also update localStorage for frontend display
+                        console.log('Guest user - updating localStorage for display');
+                        const guestCart = JSON.parse(localStorage.getItem('guestCart') || '[]');
+                        const existingItem = guestCart.find(
+                            item => item.product_id === courseId && item.product_type === 'course'
+                        );
+
+                        if (existingItem) {
+                            existingItem.quantity += 1;
+                            console.log('Course already in guest cart, incrementing quantity');
+                        } else {
+                            // Parse price from format.price string (e.g., "£1,465" -> 1465)
+                            let coursePrice = 0;
+                            if (format.price) {
+                                const priceMatch = format.price.toString().replace(/[£,]/g, '').match(/[\d.]+/);
+                                if (priceMatch) {
+                                    coursePrice = parseFloat(priceMatch[0]);
+                                }
+                            }
+
+                            const newCartItem = {
+                                ...payload,
+                                course_name: data.name,
+                                course_image: data.image || '/assets/images/product-img.png',
+                                course_price: coursePrice,
+                                course_fee: format.price || '£0',
+                                selectedMode: format.mode,
+                                selectedDuration: format.duration,
+                            };
+                            guestCart.push(newCartItem);
+                            console.log('Added new course to guest cart:', newCartItem);
+                        }
+
+                        localStorage.setItem('guestCart', JSON.stringify(guestCart));
+                        console.log('Guest cart saved to localStorage:', guestCart);
+
+                        // Trigger guest cart update event to refresh navbar and cart display
+                        window.dispatchEvent(new Event('guestCartUpdated'));
+                        window.dispatchEvent(new StorageEvent('storage', {
+                            key: 'guestCart',
+                            newValue: JSON.stringify(guestCart)
+                        }));
+                        console.log('✅ Guest cart updated in localStorage');
+                    }
+
+                    // Show success message
+                    setSnackbar({
+                        open: true,
+                        message: 'Course added to cart successfully!',
+                        severity: 'success'
+                    });
+
+                    // Navigate: logged-in -> basket (Place Order → Stripe); guest -> signup
+                    setTimeout(() => {
+                        if (token) {
+                            console.log('User logged in, navigating to basket');
+                            navigate('/basket');
+                        } else {
+                            console.log('Guest user, navigating to signup');
+                            navigate('/signup');
+                        }
+                    }, 1500);
+                } else {
+                    console.error('❌ Failed to add to cart:', result.payload || result.error);
+                    setSnackbar({
+                        open: true,
+                        message: 'Failed to add course to cart. You can still proceed.',
+                        severity: 'warning'
+                    });
+                    setTimeout(() => {
+                        const t = localStorage.getItem('token');
+                        if (t) navigate('/basket');
+                        else navigate('/signup');
+                    }, 1500);
+                }
+            } catch (error) {
+                console.error('❌ Error adding course to cart:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Failed to add course to cart. You can still proceed.',
+                    severity: 'warning'
+                });
+                setTimeout(() => {
+                    const t = localStorage.getItem('token');
+                    if (t) navigate('/basket');
+                    else navigate('/signup');
+                }, 1500);
+            } finally {
+                setAddingToCart(false);
+            }
+        } else {
+            console.error('❌ Course ID is missing!');
+            setSnackbar({
+                open: true,
+                message: 'Course information is missing. Please try again.',
+                severity: 'error'
+            });
+            setTimeout(() => {
+                const t = localStorage.getItem('token');
+                if (t) navigate('/basket');
+                else navigate('/signup');
+            }, 1500);
+        }
     };
 
-    if (
-        !data ||
-        !Array.isArray(data.modes) ||
-        data.modes.length === 0
-    ) {
+    const handleCloseSnackbar = (event, reason) => {
+        if (reason === 'clickaway') {
+            return;
+        }
+        setSnackbar({ ...snackbar, open: false });
+    };
+
+    // Check if data is missing or invalid
+    if (!data) {
+        console.warn('Year3FormatsSection: Missing course data');
         return (
             <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
                 <Container sx={containerStyles}>
-                    {/* Loading Progress Bar */}
-                    <LinearProgress
-                        sx={{
-                            height: 3,
-                            backgroundColor: '#e3f2fd',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundColor: '#1976d2'
-                            }
-                        }}
-                    />
-                    {/* Commented out gradient version */}
-                    {/* 
-                    <LinearProgress 
-                        sx={{ 
-                            height: 3,
-                            backgroundColor: '#f0f0f0',
-                            mb: 3,
-                            '& .MuiLinearProgress-bar': {
-                                backgroundImage: 'linear-gradient(90deg, #4450A5 0%, #EF2A1E 100%)'
-                            }
-                        }} 
-                    />
-                    */}
                     <Box textAlign="center" sx={{ py: 5 }}>
-                        <Typography variant="h6">Loading course formats...</Typography>
+                        <Typography variant="h6">Course information unavailable</Typography>
                         <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
-                            Please wait while we fetch the available formats
+                            Course details are not available at the moment. Please try again later.
                         </Typography>
-                        {/* Commented out original no data message */}
-                        {/* <Typography variant="h6">No course formats available.</Typography> */}
+                    </Box>
+                </Container>
+            </Box>
+        );
+    }
+
+    // Check if modes data is missing or empty
+    if (!Array.isArray(data.modes) || data.modes.length === 0) {
+        console.warn('Year3FormatsSection: Missing or empty modes array', {
+            hasModes: Array.isArray(data.modes),
+            modesLength: data.modes?.length,
+            dataKeys: Object.keys(data)
+        });
+        return (
+            <Box component="section" sx={{ bgcolor: '#fff', px: { xs: 2, sm: 4, md: 6 }, py: { xs: 4, sm: 6, md: 8 } }}>
+                <Container sx={containerStyles}>
+                    <Box textAlign="center" sx={{ py: 5 }}>
+                        <Typography variant="h6">No course formats available</Typography>
+                        <Typography variant="body2" sx={{ mt: 1, color: 'text.secondary' }}>
+                            Course formats for this course are not available at the moment. Please contact us for more information.
+                        </Typography>
                     </Box>
                 </Container>
             </Box>
@@ -84,6 +296,30 @@ export default function Year3FormatsSection({ data }) {
         const duration = pricing ? Object.keys(pricing)[0] : null;
         const firstPriceOption = pricing && duration ? pricing[duration] : null;
         const price = firstPriceOption ? firstPriceOption.price : '£1,465';
+        const registrationFee = firstPriceOption?.registration_fee != null ? firstPriceOption.registration_fee : null;
+        const currency = firstPriceOption?.currency || '€';
+
+        // Get price_id - try to find a valid Stripe price ID (starts with 'price_')
+        let priceId = null;
+        if (firstPriceOption?.price_id) {
+            // Check if it's a valid Stripe price ID
+            if (typeof firstPriceOption.price_id === 'string' && firstPriceOption.price_id.startsWith('price_')) {
+                priceId = firstPriceOption.price_id;
+            }
+        }
+
+        // If no valid price_id found, try all durations for this mode
+        if (!priceId && pricing) {
+            for (const durationKey of Object.keys(pricing)) {
+                const priceOption = pricing[durationKey];
+                if (priceOption?.price_id &&
+                    typeof priceOption.price_id === 'string' &&
+                    priceOption.price_id.startsWith('price_')) {
+                    priceId = priceOption.price_id;
+                    break; // Use first valid Stripe price ID found
+                }
+            }
+        }
 
         // Get mode-specific features
         const modeFeatures = mode === 'Online'
@@ -96,10 +332,12 @@ export default function Year3FormatsSection({ data }) {
             subtitle: mode === 'Online' ? 'Flexible Learning' : 'Max. class size of 9',
             headerBg: idx % 2 === 0 ? '#3944BC' : '#D6232A',
             price: price,
+            registrationFee: registrationFee,
+            currency: currency,
             features: modeFeatures,
             mode: mode,
             duration: duration,
-            priceId: firstPriceOption ? firstPriceOption.price_id : null,
+            priceId: priceId,
         };
     });
 
@@ -156,7 +394,12 @@ export default function Year3FormatsSection({ data }) {
                                     <Typography sx={{ fontSize: '0.9rem', opacity: 0.95 }}>{f.title}</Typography>
                                 </Box>
                                 <CardContent sx={{ textAlign: 'center', py: 4 }}>
-                                    <Typography sx={{ fontWeight: 800, fontSize: '3rem', color: f.headerBg, mb: 1 }}>{f.price}</Typography>
+                                    <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 0.5 }}>Registration fee</Typography>
+                                    <Typography sx={{ fontWeight: 800, fontSize: '3rem', color: f.headerBg, mb: 1 }}>
+                                        {f.registrationFee != null && Number(f.registrationFee) >= 0
+                                            ? `${f.currency}${Number(f.registrationFee).toFixed(2)}`
+                                            : '—'}
+                                    </Typography>
                                     <Typography sx={{ fontSize: '0.875rem', color: 'text.secondary', mb: 3 }}>{f.subtitle}</Typography>
                                     <Box sx={{ mb: 3 }}>
                                         {f.features.map((feature, i) => (
@@ -169,10 +412,22 @@ export default function Year3FormatsSection({ data }) {
                                     <Button
                                         variant="contained"
                                         size="large"
-                                        onClick={() => handleRegisterClick(f)}
-                                        sx={{ bgcolor: f.headerBg, color: 'white', fontWeight: 700, px: 4, py: 1.5, borderRadius: 3, textTransform: 'uppercase', '&:hover': { bgcolor: f.headerBg, transform: 'translateY(-2px)' } }}
+                                        disabled={addingToCart || isSubscribed}
+                                        onClick={() => !isSubscribed && handleRegisterClick(f)}
+                                        sx={{
+                                            bgcolor: isSubscribed ? '#2e7d32' : f.headerBg,
+                                            color: 'white',
+                                            fontWeight: 700,
+                                            px: 4,
+                                            py: 1.5,
+                                            borderRadius: 3,
+                                            textTransform: 'uppercase',
+                                            '&:hover': { bgcolor: isSubscribed ? '#2e7d32' : f.headerBg, transform: isSubscribed ? 'none' : 'translateY(-2px)' },
+                                            '&:disabled': { opacity: 0.7 },
+                                            cursor: isSubscribed ? 'default' : 'pointer',
+                                        }}
                                     >
-                                        Register Now
+                                        {addingToCart ? 'Adding...' : (isSubscribed ? 'Subscribed' : 'Register Now')}
                                     </Button>
                                 </CardContent>
                             </Card>
@@ -180,6 +435,23 @@ export default function Year3FormatsSection({ data }) {
                     ))}
                 </Grid>
             </Container>
+
+            {/* Snackbar for cart notifications */}
+            <Snackbar
+                open={snackbar.open}
+                autoHideDuration={3000}
+                onClose={handleCloseSnackbar}
+                anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+                <Alert
+                    onClose={handleCloseSnackbar}
+                    severity={snackbar.severity}
+                    sx={{ width: '100%' }}
+                    variant="filled"
+                >
+                    {snackbar.message}
+                </Alert>
+            </Snackbar>
         </Box>
     );
 }

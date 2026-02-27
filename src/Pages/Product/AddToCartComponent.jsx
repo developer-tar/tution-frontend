@@ -59,18 +59,23 @@ const AddToCartComponent = () => {
             ? `${primarySlot.weekday} ${primarySlot.start_end_time}`
             : 'Schedule to be confirmed';
 
-    // Prefer price derived directly from course API based on selected mode & duration
-    const derivedPriceFromApi = (() => {
+    // Registration fee (user only pays this) – prefer from cartData, then from price_according_to_mode
+    const derivedRegistrationFee = (() => {
+        if (cartData?.selectedRegistrationFee != null && Number(cartData.selectedRegistrationFee) >= 0) {
+            const currency = cartData.selectedRegistrationFeeCurrency || '€';
+            return `${currency}${Number(cartData.selectedRegistrationFee).toFixed(2)}`;
+        }
         const mode = cartData?.selectedMode;
-        const duration = cartData?.selectedDuration;
+        const duration = cartData?.selectedDuration || cartData?.selectedCourse?.duration;
         const pricing = cartData?.courseData?.price_according_to_mode;
-        if (mode && duration && pricing && pricing[mode] && pricing[mode][duration]) {
-            return pricing[mode][duration].price;
+        if (mode && duration && pricing?.[mode]?.[duration]?.registration_fee != null) {
+            const currency = pricing[mode][duration].currency || '€';
+            return `${currency}${Number(pricing[mode][duration].registration_fee).toFixed(2)}`;
         }
         return null;
     })();
 
-    const displayPrice = derivedPriceFromApi
+    const displayPrice = derivedRegistrationFee
         || cartData?.selectedPrice
         || cartData?.selectedPlan?.price
         || cartData?.selectedFee

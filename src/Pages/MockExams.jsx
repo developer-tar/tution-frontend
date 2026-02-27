@@ -90,7 +90,7 @@ export default function MockExams() {
     setSelectedCategory(categoryId);
     setIsCategoryOpen(false); // Close dropdown after selection
   };
-  
+
   const handleFormatClick = (formatValue) => {
     setSelectedFormat(formatValue);
     setIsFormatOpen(false); // Close dropdown after selection
@@ -110,41 +110,41 @@ export default function MockExams() {
                   p: 1.8,
                   cursor: 'pointer',
                   borderRadius: 2,
-                  backgroundColor: isSelected 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                  backgroundColor: isSelected
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                     : 'rgba(255, 255, 255, 0.8)',
-                  background: isSelected 
-                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                  background: isSelected
+                    ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                     : 'rgba(255, 255, 255, 0.8)',
-                  border: isSelected 
-                    ? '2px solid transparent' 
+                  border: isSelected
+                    ? '2px solid transparent'
                     : '2px solid rgba(102, 126, 234, 0.2)',
                   color: isSelected ? 'white' : '#1a1a1a',
                   transition: 'all 0.3s ease',
-                  boxShadow: isSelected 
-                    ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                  boxShadow: isSelected
+                    ? '0 4px 15px rgba(102, 126, 234, 0.3)'
                     : '0 2px 8px rgba(0, 0, 0, 0.05)',
                   display: 'flex',
                   alignItems: 'center',
                   gap: 1.5,
                   '&:hover': {
                     transform: 'translateX(4px)',
-                    boxShadow: isSelected 
-                      ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                    boxShadow: isSelected
+                      ? '0 6px 20px rgba(102, 126, 234, 0.4)'
                       : '0 4px 12px rgba(102, 126, 234, 0.2)',
                     borderColor: isSelected ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
-                    backgroundColor: isSelected 
-                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                    backgroundColor: isSelected
+                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                       : 'rgba(102, 126, 234, 0.08)',
-                    background: isSelected 
-                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                    background: isSelected
+                      ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                       : 'rgba(102, 126, 234, 0.08)',
                   }
                 }}
               >
-                <Typography 
-                  sx={{ 
-                    fontWeight: isSelected ? 700 : 500, 
+                <Typography
+                  sx={{
+                    fontWeight: isSelected ? 700 : 500,
                     flex: 1,
                     fontSize: '0.95rem',
                     transition: 'all 0.3s ease'
@@ -170,8 +170,17 @@ export default function MockExams() {
 
   const handleAddToBasket = () => {
     if (!selected) return;
+
+    // Determine product_type based on item type
+    let productType = "mock_exam"; // default
+    if (selected.type === "extracted_paper") {
+      productType = "papers";
+    } else if (selected.type === "mock_exam") {
+      productType = "mock_exam";
+    }
+
     const payload = {
-      product_type: "mock_exam",
+      product_type: productType,
       product_id: selected.id,
       quantity: 1,
     };
@@ -180,7 +189,7 @@ export default function MockExams() {
       .then(() => {
         dispatch(fetchCart());
         setOpenModal(false);
-        setShowBasketModal(true);
+        setAlert({ open: true, message: "Item added to cart successfully!" });
       })
       .catch((err) => {
         const errorMessage = typeof err === "string" ? err : err?.message || "Something went wrong";
@@ -208,22 +217,22 @@ export default function MockExams() {
               title: "Realistic Exam Conditions",
               desc: "Timed sections and authentic question types build confidence for the day.",
               gradient: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            },{
+            }, {
               icon: <SchoolIcon sx={{ fontSize: 40, color: "#1976d2" }} />,
               title: "Targeted Preparation",
               desc: "Focus on the boards and formats that matter to your child.",
               gradient: "linear-gradient(135deg, #f093fb 0%, #f5576c 100%)",
-            },{
+            }, {
               icon: <AccessTimeIcon sx={{ fontSize: 40, color: "#1976d2" }} />,
               title: "Detailed Feedback",
               desc: "Understand strengths and next steps with clear, actionable insights.",
               gradient: "linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)",
             }].map((card, i) => (
               <Grid item xs={12} md={4} key={i}>
-                <Box 
-                  sx={{ 
-                    p: 4, 
-                    borderRadius: 3, 
+                <Box
+                  sx={{
+                    p: 4,
+                    borderRadius: 3,
                     background: card.gradient,
                     color: 'white',
                     boxShadow: '0 10px 30px rgba(0,0,0,0.15)',
@@ -238,9 +247,9 @@ export default function MockExams() {
                   }}
                 >
                   <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2 }}>
-                    <Box sx={{ 
-                      p: 1.5, 
-                      borderRadius: 2, 
+                    <Box sx={{
+                      p: 1.5,
+                      borderRadius: 2,
                       background: 'rgba(255,255,255,0.2)',
                       backdropFilter: 'blur(10px)',
                       display: 'flex',
@@ -260,8 +269,8 @@ export default function MockExams() {
           {/* Filters */}
           <Grid container spacing={2} sx={{ mb: 3 }}>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ 
-                p: 2, 
+              <Paper sx={{
+                p: 2,
                 borderRadius: 2,
                 boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                 border: '1px solid rgba(25, 118, 210, 0.1)',
@@ -294,7 +303,7 @@ export default function MockExams() {
                   }}
                 >
                   <Typography sx={{ fontWeight: 500 }}>
-                    {selectedCategory ? 
+                    {selectedCategory ?
                       categories.flatMap(c => [c, ...(c.all_children || []).flatMap(sc => [sc, ...(sc.all_children || []).flatMap(ssc => [ssc, ...(ssc.all_children || []).flatMap(sssc => [sssc, ...(sssc.all_children || [])])])])]).find(cat => String(cat.id) === String(selectedCategory))?.name || 'Select Category'
                       : 'All Categories'
                     }
@@ -351,15 +360,15 @@ export default function MockExams() {
                 )}
                 {/* Dropdown Content */}
                 {isCategoryOpen && (
-                  <Box 
-                    sx={{ 
+                  <Box
+                    sx={{
                       position: 'absolute',
                       top: '100%',
                       left: 0,
                       right: 0,
                       mt: 1.5,
-                      maxHeight: 400, 
-                      overflow: 'auto', 
+                      maxHeight: 400,
+                      overflow: 'auto',
                       border: '2px solid rgba(102, 126, 234, 0.2)',
                       borderRadius: 2,
                       p: 2,
@@ -405,7 +414,7 @@ export default function MockExams() {
                             e.stopPropagation();
                             setSelectedCategory("");
                           }}
-                          sx={{ 
+                          sx={{
                             textTransform: 'none',
                             borderRadius: '20px',
                             background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -432,8 +441,8 @@ export default function MockExams() {
               </Paper>
             </Grid>
             <Grid item xs={12} md={6}>
-              <Paper sx={{ 
-                p: 2, 
+              <Paper sx={{
+                p: 2,
                 borderRadius: 2,
                 boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
                 border: '1px solid rgba(25, 118, 210, 0.1)',
@@ -466,11 +475,11 @@ export default function MockExams() {
                   }}
                 >
                   <Typography sx={{ fontWeight: 500 }}>
-                    {selectedFormat ? 
-                      (formats.find(f => String(f?.id) === String(selectedFormat))?.name || 
-                       formats.find(f => String(f?.value) === String(selectedFormat))?.label || 
-                       formats.find(f => String(f) === String(selectedFormat)) || 
-                       'Select Format')
+                    {selectedFormat ?
+                      (formats.find(f => String(f?.id) === String(selectedFormat))?.name ||
+                        formats.find(f => String(f?.value) === String(selectedFormat))?.label ||
+                        formats.find(f => String(f) === String(selectedFormat)) ||
+                        'Select Format')
                       : 'All Formats'
                     }
                   </Typography>
@@ -526,15 +535,15 @@ export default function MockExams() {
                 )}
                 {/* Dropdown Content */}
                 {isFormatOpen && (
-                  <Box 
-                    sx={{ 
+                  <Box
+                    sx={{
                       position: 'absolute',
                       top: '100%',
                       left: 0,
                       right: 0,
                       mt: 1.5,
-                      maxHeight: 400, 
-                      overflow: 'auto', 
+                      maxHeight: 400,
+                      overflow: 'auto',
                       border: '2px solid rgba(102, 126, 234, 0.2)',
                       borderRadius: 2,
                       p: 2,
@@ -581,7 +590,7 @@ export default function MockExams() {
                             setSelectedFormat("");
                             setIsFormatOpen(false);
                           }}
-                          sx={{ 
+                          sx={{
                             textTransform: 'none',
                             borderRadius: '20px',
                             background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)',
@@ -609,19 +618,19 @@ export default function MockExams() {
                         p: 1.8,
                         cursor: 'pointer',
                         borderRadius: 2,
-                        backgroundColor: selectedFormat === "" 
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                        backgroundColor: selectedFormat === ""
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                           : 'rgba(255, 255, 255, 0.8)',
-                        background: selectedFormat === "" 
-                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                        background: selectedFormat === ""
+                          ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                           : 'rgba(255, 255, 255, 0.8)',
-                        border: selectedFormat === "" 
-                          ? '2px solid transparent' 
+                        border: selectedFormat === ""
+                          ? '2px solid transparent'
                           : '2px solid rgba(102, 126, 234, 0.2)',
                         color: selectedFormat === "" ? 'white' : '#1a1a1a',
                         transition: 'all 0.3s ease',
-                        boxShadow: selectedFormat === "" 
-                          ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                        boxShadow: selectedFormat === ""
+                          ? '0 4px 15px rgba(102, 126, 234, 0.3)'
                           : '0 2px 8px rgba(0, 0, 0, 0.05)',
                         mb: 1.5,
                         display: 'flex',
@@ -629,15 +638,15 @@ export default function MockExams() {
                         gap: 1.5,
                         '&:hover': {
                           transform: 'translateX(4px)',
-                          boxShadow: selectedFormat === "" 
-                            ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                          boxShadow: selectedFormat === ""
+                            ? '0 6px 20px rgba(102, 126, 234, 0.4)'
                             : '0 4px 12px rgba(102, 126, 234, 0.2)',
                           borderColor: selectedFormat === "" ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
-                          backgroundColor: selectedFormat === "" 
-                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                          backgroundColor: selectedFormat === ""
+                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                             : 'rgba(102, 126, 234, 0.08)',
-                          background: selectedFormat === "" 
-                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                          background: selectedFormat === ""
+                            ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                             : 'rgba(102, 126, 234, 0.08)',
                         }
                       }}
@@ -662,19 +671,19 @@ export default function MockExams() {
                             p: 1.8,
                             cursor: 'pointer',
                             borderRadius: 2,
-                            backgroundColor: isSelected 
-                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                            backgroundColor: isSelected
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                               : 'rgba(255, 255, 255, 0.8)',
-                            background: isSelected 
-                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' 
+                            background: isSelected
+                              ? 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)'
                               : 'rgba(255, 255, 255, 0.8)',
-                            border: isSelected 
-                              ? '2px solid transparent' 
+                            border: isSelected
+                              ? '2px solid transparent'
                               : '2px solid rgba(102, 126, 234, 0.2)',
                             color: isSelected ? 'white' : '#1a1a1a',
                             transition: 'all 0.3s ease',
-                            boxShadow: isSelected 
-                              ? '0 4px 15px rgba(102, 126, 234, 0.3)' 
+                            boxShadow: isSelected
+                              ? '0 4px 15px rgba(102, 126, 234, 0.3)'
                               : '0 2px 8px rgba(0, 0, 0, 0.05)',
                             mb: 1.5,
                             display: 'flex',
@@ -682,15 +691,15 @@ export default function MockExams() {
                             gap: 1.5,
                             '&:hover': {
                               transform: 'translateX(4px)',
-                              boxShadow: isSelected 
-                                ? '0 6px 20px rgba(102, 126, 234, 0.4)' 
+                              boxShadow: isSelected
+                                ? '0 6px 20px rgba(102, 126, 234, 0.4)'
                                 : '0 4px 12px rgba(102, 126, 234, 0.2)',
                               borderColor: isSelected ? 'transparent' : 'rgba(102, 126, 234, 0.4)',
-                              backgroundColor: isSelected 
-                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                              backgroundColor: isSelected
+                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                                 : 'rgba(102, 126, 234, 0.08)',
-                              background: isSelected 
-                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)' 
+                              background: isSelected
+                                ? 'linear-gradient(135deg, #764ba2 0%, #667eea 100%)'
                                 : 'rgba(102, 126, 234, 0.08)',
                             }
                           }}
@@ -736,9 +745,9 @@ export default function MockExams() {
             ))}
           </Grid> */}
 
-          <TableContainer 
-            component={Paper} 
-            sx={{ 
+          <TableContainer
+            component={Paper}
+            sx={{
               boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
               borderRadius: 3,
               overflow: 'hidden',
@@ -747,7 +756,7 @@ export default function MockExams() {
           >
             <Table>
               <TableHead>
-                <TableRow sx={{ 
+                <TableRow sx={{
                   background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                   '& .MuiTableCell-head': {
                     color: 'white',
@@ -772,7 +781,7 @@ export default function MockExams() {
                   </TableRow>
                 ) : (
                   rows.map((exam, idx) => (
-                    <TableRow 
+                    <TableRow
                       key={exam.id}
                       sx={{
                         '&:hover': {
@@ -833,8 +842,8 @@ export default function MockExams() {
                               setOpenModal(true);
                             }
                           }}
-                          sx={{ 
-                            textTransform: "none", 
+                          sx={{
+                            textTransform: "none",
                             borderRadius: "25px",
                             background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                             boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
@@ -923,9 +932,6 @@ export default function MockExams() {
                   <Button variant="outlined" fullWidth onClick={() => setShowBasketModal(false)}>
                     Continue Browsing
                   </Button>
-                  <Button variant="outlined" fullWidth component={Link} to="/basket" onClick={() => setShowBasketModal(false)}>
-                    View Basket
-                  </Button>
                 </Box>
 
                 <Button variant="contained" fullWidth component={Link} to="/checkout" onClick={() => setShowBasketModal(false)}>
@@ -937,11 +943,11 @@ export default function MockExams() {
 
           {/* How it works */}
           <Box sx={{ mt: 8, mb: 6 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                fontWeight: 800, 
-                mb: 4, 
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                mb: 4,
                 textAlign: "center",
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 WebkitBackgroundClip: 'text',
@@ -954,11 +960,11 @@ export default function MockExams() {
             <Grid container spacing={3}>
               {["Choose your mock exam", "Register and receive confirmation", "Take the test under timed conditions", "Get feedback and next steps"].map((step, idx) => (
                 <Grid item xs={12} md={3} key={idx}>
-                  <Box 
-                    sx={{ 
-                      p: 4, 
-                      textAlign: "center", 
-                      borderRadius: 3, 
+                  <Box
+                    sx={{
+                      p: 4,
+                      textAlign: "center",
+                      borderRadius: 3,
                       background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
                       boxShadow: "0 8px 24px rgba(0,0,0,0.1)",
                       border: '2px solid rgba(102, 126, 234, 0.1)',
@@ -971,17 +977,17 @@ export default function MockExams() {
                       }
                     }}
                   >
-                    <Box 
-                      sx={{ 
-                        display: "inline-flex", 
-                        alignItems: "center", 
-                        justifyContent: "center", 
-                        width: 56, 
-                        height: 56, 
-                        borderRadius: "50%", 
+                    <Box
+                      sx={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        width: 56,
+                        height: 56,
+                        borderRadius: "50%",
                         background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                        color: "white", 
-                        fontWeight: 800, 
+                        color: "white",
+                        fontWeight: 800,
                         fontSize: '1.5rem',
                         mb: 2,
                         boxShadow: '0 4px 15px rgba(102, 126, 234, 0.4)',
@@ -998,11 +1004,11 @@ export default function MockExams() {
 
           {/* FAQ */}
           <Box sx={{ mt: 8, mb: 6 }}>
-            <Typography 
-              variant="h4" 
-              sx={{ 
-                fontWeight: 800, 
-                mb: 4, 
+            <Typography
+              variant="h4"
+              sx={{
+                fontWeight: 800,
+                mb: 4,
                 textAlign: "center",
                 background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
                 WebkitBackgroundClip: 'text',
@@ -1015,22 +1021,22 @@ export default function MockExams() {
             {[{
               q: "Are the mocks aligned to real exam boards?",
               a: "Yes, mocks mirror board styles like CSSE, GL, and more where specified.",
-            },{
+            }, {
               q: "Do I get detailed feedback?",
               a: "You'll receive a summary of performance and guidance on areas to improve.",
-            },{
+            }, {
               q: "What if I need to reschedule?",
               a: "Contact support before your mock date; we'll try to accommodate changes.",
-            },{
+            }, {
               q: "Is there online format available?",
               a: "Where format is 'any', both in-person and online options may be provided.",
-            },{
+            }, {
               q: "How do I register?",
               a: "Click Register Now next to the mock and follow the checkout process.",
             }].map((item, i) => (
-              <Accordion 
-                key={i} 
-                sx={{ 
+              <Accordion
+                key={i}
+                sx={{
                   background: "linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%)",
                   mb: 2,
                   borderRadius: 2,
@@ -1045,7 +1051,7 @@ export default function MockExams() {
                   }
                 }}
               >
-                <AccordionSummary 
+                <AccordionSummary
                   expandIcon={<ExpandMoreIcon sx={{ color: '#667eea', fontSize: '2rem' }} />}
                   sx={{
                     '&:hover': {
@@ -1066,15 +1072,15 @@ export default function MockExams() {
           </Box>
 
           {/* Final CTA */}
-          <Box 
-            sx={{ 
-              mt: 8, 
-              p: 6, 
-              borderRadius: 4, 
+          <Box
+            sx={{
+              mt: 8,
+              p: 6,
+              borderRadius: 4,
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              display: "flex", 
-              alignItems: "center", 
-              gap: 3, 
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
               flexWrap: "wrap",
               boxShadow: '0 12px 40px rgba(102, 126, 234, 0.3)',
               position: 'relative',
@@ -1092,10 +1098,10 @@ export default function MockExams() {
             }}
           >
             <Box sx={{ flex: 1, minWidth: 240, position: 'relative', zIndex: 1 }}>
-              <Typography 
-                variant="h4" 
-                sx={{ 
-                  fontWeight: 800, 
+              <Typography
+                variant="h4"
+                sx={{
+                  fontWeight: 800,
                   mb: 1,
                   color: 'white',
                   fontSize: { xs: '1.5rem', md: '2rem' }
@@ -1107,13 +1113,13 @@ export default function MockExams() {
                 Register for a mock exam today and get exam-ready with confidence.
               </Typography>
             </Box>
-            <Button 
-              variant="contained" 
+            <Button
+              variant="contained"
               onClick={() => {
                 if (rows && rows[0]) { setSelected(rows[0]); setOpenModal(true); }
-              }} 
-              sx={{ 
-                textTransform: "none", 
+              }}
+              sx={{
+                textTransform: "none",
                 borderRadius: "30px",
                 padding: '14px 32px',
                 fontSize: '1.1rem',
